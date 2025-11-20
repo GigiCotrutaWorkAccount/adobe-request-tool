@@ -3,10 +3,30 @@ const axios = require('axios');
 const cors = require('cors');
 const path = require('path');
 const qs = require('qs'); // Need qs for x-www-form-urlencoded
-const config = require('./config');
+
+let config;
+try {
+    config = require('./config');
+} catch (e) {
+    console.log('config.js not found, using environment variables');
+    config = {
+        ADOBE_URL: process.env.ADOBE_URL,
+        COLLECTION_URL: process.env.COLLECTION_URL,
+        TOKEN_URL: process.env.TOKEN_URL,
+        CLIENT_ID: process.env.CLIENT_ID,
+        CLIENT_SECRET: process.env.CLIENT_SECRET,
+        GRANT_TYPE: process.env.GRANT_TYPE,
+        SCOPE: process.env.SCOPE,
+        ORG_ID: process.env.ORG_ID,
+        API_KEY: process.env.API_KEY,
+        SANDBOX_NAME: process.env.SANDBOX_NAME,
+        FLOW_ID: process.env.FLOW_ID,
+        CUSTOM_HEADERS: process.env.CUSTOM_HEADERS ? JSON.parse(process.env.CUSTOM_HEADERS) : {}
+    };
+}
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
