@@ -5,332 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adobe Request Tool</title>
-    <style>
-        :root {
-            --bg-color: #f5f5f7;
-            --text-color: #1d1d1f;
-            --sidebar-bg: white;
-            --sidebar-border: #d2d2d7;
-            --item-hover: #f5f5f7;
-            --item-active-bg: #e8f2ff;
-            --item-active-text: #0071e3;
-            --card-bg: white;
-            --input-bg: white;
-            --input-border: #d2d2d7;
-            --input-text: #1d1d1f;
-            --label-color: #86868b;
-            --header-border: #eee;
-            --response-bg: #f5f5f7;
-            --response-border: #e5e5e5;
-            --group-card-bg: #fbfbfd;
-        }
-
-        body.dark-mode {
-            --bg-color: #1c1c1e;
-            --text-color: #f5f5f7;
-            --sidebar-bg: #2c2c2e;
-            --sidebar-border: #3a3a3c;
-            --item-hover: #3a3a3c;
-            --item-active-bg: #0040dd;
-            --item-active-text: #ffffff;
-            --card-bg: #2c2c2e;
-            --input-bg: #1c1c1e;
-            --input-border: #3a3a3c;
-            --input-text: #f5f5f7;
-            --label-color: #a1a1a6;
-            --header-border: #3a3a3c;
-            --response-bg: #1c1c1e;
-            --response-border: #3a3a3c;
-            --group-card-bg: #3a3a3c;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            overflow: hidden;
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        /* Layout */
-        .sidebar {
-            width: 300px;
-            background: var(--sidebar-bg);
-            border-right: 1px solid var(--sidebar-border);
-            display: flex;
-            flex-direction: column;
-            padding: 1rem 0;
-            flex-shrink: 0;
-            transition: background-color 0.3s, border-color 0.3s;
-        }
-
-        .main-content {
-            flex-grow: 1;
-            padding: 2rem;
-            overflow-y: auto;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            position: relative;
-        }
-
-        .form-container {
-            background: var(--card-bg);
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-            width: 100%;
-            max-width: 600px;
-            display: none;
-            /* Hidden by default */
-            transition: background-color 0.3s;
-        }
-
-        /* Sidebar Items */
-        .sidebar-header {
-            padding: 0 1.5rem 1rem;
-            border-bottom: 1px solid var(--header-border);
-            margin-bottom: 0.5rem;
-        }
-
-        .sidebar-header h1 {
-            font-size: 18px;
-            margin: 0;
-        }
-
-        .event-item {
-            padding: 12px 1.5rem;
-            cursor: pointer;
-            font-size: 14px;
-            color: var(--text-color);
-            transition: background-color 0.1s;
-            border-left: 3px solid transparent;
-        }
-
-        .event-item:hover {
-            background-color: var(--item-hover);
-        }
-
-        .event-item.active {
-            background-color: var(--item-active-bg);
-            color: var(--item-active-text);
-            border-left-color: #0071e3;
-            font-weight: 500;
-        }
-
-        /* Form Elements */
-        h2 {
-            margin-top: 0;
-            font-size: 20px;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--header-border);
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 0.3rem;
-            font-weight: 500;
-            font-size: 12px;
-            color: var(--label-color);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        input,
-        select {
-            width: 100%;
-            padding: 8px 10px;
-            /* Smaller padding */
-            border: 1px solid var(--input-border);
-            background-color: var(--input-bg);
-            color: var(--input-text);
-            border-radius: 6px;
-            font-size: 14px;
-            /* Smaller font */
-            box-sizing: border-box;
-            transition: border-color 0.2s, background-color 0.3s, color 0.3s;
-        }
-
-        input:focus,
-        select:focus {
-            outline: none;
-            border-color: #0071e3;
-        }
-
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #0071e3;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            margin-top: 1rem;
-        }
-
-        button:hover {
-            background-color: #0077ed;
-        }
-
-        button:disabled {
-            background-color: #999;
-            cursor: not-allowed;
-        }
-
-        .group-btn {
-            background-color: var(--card-bg);
-            color: #0071e3;
-            border: 1px solid var(--input-border);
-            margin-top: 0.5rem;
-            text-align: left;
-            padding: 12px;
-        }
-
-        .group-btn:hover {
-            background-color: var(--item-hover);
-            border-color: #0071e3;
-        }
-
-        #response {
-            margin-top: 1.5rem;
-            padding: 1rem;
-            background: var(--response-bg);
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 11px;
-            white-space: pre-wrap;
-            display: none;
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid var(--response-border);
-            color: var(--text-color);
-        }
-
-        .error {
-            color: #ff3b30;
-        }
-
-        .success {
-            color: #34c759;
-        }
-
-        /* Grid for fields */
-        .fields-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .fields-grid .form-group {
-            margin-bottom: 0;
-        }
-
-        .full-width {
-            grid-column: 1 / -1;
-        }
-
-        /* Dark Mode Toggle Switch */
-        .theme-switch-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: auto;
-            /* Push to bottom */
-            padding: 1.5rem 1rem 0.5rem;
-            border-top: 1px solid var(--header-border);
-        }
-
-        .theme-switch {
-            position: relative;
-            display: inline-block;
-            width: 44px;
-            height: 24px;
-            margin: 0 10px;
-        }
-
-        .theme-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 24px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        input:checked+.slider {
-            background-color: #0071e3;
-        }
-
-        input:checked+.slider:before {
-            transform: translateX(20px);
-        }
-
-        .theme-label {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--label-color);
-            cursor: pointer;
-        }
-
-        .event-card {
-            background-color: var(--group-card-bg) !important;
-            border-color: var(--input-border) !important;
-        }
-
-        .event-card h3 {
-            color: var(--text-color);
-        }
-
-        /* Sidebar Separators and Labels */
-        .sidebar-separator {
-            height: 1px;
-            background-color: var(--sidebar-border);
-            margin: 0.5rem 1.5rem;
-        }
-
-        .event-group-label {
-            padding: 0.5rem 1.5rem;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: var(--label-color);
-            letter-spacing: 0.5px;
-            margin-top: 0.5rem;
-        }
-    </style>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -354,6 +31,12 @@
         <div class="event-item" onclick="selectEvent(6, 'kafka.recibo-total.situacion')">kafka.recibo-total.situacion
         </div>
         <div class="event-item" onclick="selectEvent(7, 'kafka.cliente.contacto')">kafka.cliente.contacto</div>
+        <div class="event-item" onclick="selectEvent(9, 'kafka.poliza.situacion')">kafka.poliza.situacion</div>
+
+        <div class="sidebar-separator"></div>
+        <div class="event-group-label">Tools</div>
+        <div class="event-item" onclick="showBatchUpload()" data-group="batchUpload">Batch Upload</div>
+        <div class="event-item" onclick="showProfileCheck()" data-group="profileCheck">Profile Check</div>
 
         <div class="theme-switch-wrapper">
             <span class="theme-label" onclick="setTheme(false)">White Mode</span>
@@ -375,378 +58,84 @@
 
             <div id="response"></div>
         </div>
+
+        <div id="batch-container" class="form-container" style="display: none;">
+            <h2>Batch Excel Upload</h2>
+
+            <div class="instructions">
+                <h3>Instructions</h3>
+                <p>Upload an Excel file with the following columns:</p>
+                <code>DNI/NIE;idCliente;estado;importeTotal;idObjeto;numeroPoliza;numeroObjeto</code>
+                <ul>
+                    <li><strong>Siniestro:</strong> If <code>importeTotal</code> is "undefined", it's treated as a
+                        Siniestro event.</li>
+                    <li><strong>Recibo:</strong> If <code>importeTotal</code> is a number, it's treated as a Recibo
+                        event (idObjeto is ignored/0).</li>
+                </ul>
+                <button onclick="downloadTemplate()">Download Template</button>
+            </div>
+
+            <div class="upload-section">
+                <input type="file" id="excelFile" accept=".xlsx, .xls" onchange="handleFileUpload(this)">
+            </div>
+
+            <div id="preview-section" style="display: none;">
+                <h3>Preview</h3>
+                <div class="preview-table-wrapper">
+                    <table id="preview-table">
+                        <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Type</th>
+                                <th>DNI/NIE</th>
+                                <th>idCliente</th>
+                                <th>Importe</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="confirmation">
+                    <p>Does the preview look correct?</p>
+                    <button onclick="processBatch()">Yes, Send Batch Events</button>
+                </div>
+            </div>
+
+            <div id="batch-log"></div>
+        </div>
+
+        <div id="profile-container" class="form-container" style="display: none;">
+            <h2>Profile Check</h2>
+
+            <div class="form-group">
+                <label for="profileClientId">Client ID</label>
+                <input type="text" id="profileClientId" placeholder="Enter Client ID" value="1">
+            </div>
+
+            <button onclick="checkProfile()">Check Profile</button>
+
+            <div id="profile-response"
+                style="display: none; margin-top: 1.5rem; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div>
+                    <h3 style="font-size: 16px; margin-bottom: 1rem;">Profile attributes</h3>
+                    <div id="profile-data"
+                        style="background: var(--response-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--response-border); max-height: 600px; overflow-y: auto;">
+                    </div>
+                </div>
+
+                <div>
+                    <h3 style="font-size: 16px; margin-bottom: 1rem;">Profile Events</h3>
+                    <div id="profile-events"
+                        style="background: var(--response-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--response-border); max-height: 600px; overflow-y: auto;">
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <script>
-        let currentVariation = null;
-
-        // Theme Management
-        const themeCheckbox = document.getElementById('checkbox');
-
-        function toggleTheme(isDark) {
-            if (isDark) {
-                document.body.classList.add('dark-mode');
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.body.classList.remove('dark-mode');
-                localStorage.setItem('theme', 'light');
-            }
-        }
-
-        function setTheme(isDark) {
-            themeCheckbox.checked = isDark;
-            toggleTheme(isDark);
-        }
-
-        // Load saved theme
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark') {
-            document.body.classList.add('dark-mode');
-            if (themeCheckbox) themeCheckbox.checked = true;
-        }
-
-        const defaults = {
-            5: {
-                "kafkaTopic": "es-verti.gcp.neurona.fct.siniestro.situacion",
-                "idSiniestro": 2405782,
-                "numeroSiniestro": 1415379,
-                "estado": "ABIE",
-                "producto": "AU01",
-                "idPoliza": 107989,
-                "numeroPoliza": 20000006,
-                "riesgo": "OPEL ASTRA 1.8 EDITION 140 AUTO",
-                "fechaDeclaracion": "19/11/2025",
-                "fechaOcurrencia": "1S11/2024",
-                "horaOcurrencia": "19/11/2024 09:00:00",
-                "modoDeclaracion": "Reclamación CICOS",
-                "fechaAuditoria": "19/11/2025",
-                "tipoSiniestro": "MSPC",
-                "motivoSituacion": "APCI",
-                "idCliente": "1" // Default to 1
-            },
-            6: {
-                "kafkaTopic": "es-verti.gcp.neurona.fct.recibo-total.situacion",
-                "anioRecibo": "2025",
-                "numeroRecibo": "3640617",
-                "tipoRecibo": "R",
-                "fechaEfecto": "12/09/2025",
-                "fechaVencimiento": "12/09/2026",
-                "fechaEmisionPoliza": "12/11/2025",
-                "fechaAlta": "12/11/2025",
-                "idPoliza": 3363290,
-                "numeroPoliza": 45134587,
-                "importeTotal": 520.01,
-                "importeNeto": 476.7,
-                "nombreMediador": "VERTI TELEFONO",
-                "numeroSitutacionRecibo": 9,
-                "idCliente": "1", // Default to 1
-                "medioPago": "OTRO",
-                "fechaEnvioCobro": "19/11/2025",
-                "estadoReciboCliente": "PIMP"
-            },
-            7: {
-                "idCliente": "12",
-                "nombre": "Juan",
-                "apellido1": "Álvarez",
-                "apellido2": "García",
-                "telefonoMovilPrincipal": "6",
-                "emailPrincipal": "juan_alvarez_9@email.com",
-                "poblacion": "Madrid",
-                "provincia": "Comunidad de Madrid",
-                "codigoPostal": "28001",
-                "kafkaTopic": "es-verti.gcp.neurona.fct.cliente.contacto"
-            }
-        };
-
-        const fieldOrder = {
-            5: ['idCliente', 'idSiniestro', 'estado', 'numeroSiniestro', 'numeroPoliza'],
-            6: ['idCliente', 'numeroRecibo', 'estadoReciboCliente', 'numeroPoliza', 'importeTotal']
-        };
-
-        const fieldOptions = {
-            'estado': ['ABIE', 'CERR'],
-            'estadoReciboCliente': ['PIMP', 'COBR']
-        };
-
-        function selectGroup(groupName) {
-            // Update active state
-            document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
-
-            const container = document.getElementById('formContainer');
-            const titleEl = document.getElementById('formTitle');
-            const dynamicFields = document.getElementById('dynamicFields');
-            const sendBtn = document.getElementById('sendBtn');
-            const responseDiv = document.getElementById('response');
-
-            container.style.display = 'block';
-            titleEl.textContent = groupName;
-            dynamicFields.innerHTML = '';
-            responseDiv.style.display = 'none';
-            sendBtn.style.display = 'none'; // Hide main send button for group view
-
-            // Render group options
-            if (groupName === 'inappmessageTracking') {
-                const variations = [
-                    { id: 4, label: 'Interact' },
-                    { id: 1, label: 'Display' },
-                    { id: 3, label: 'Dismiss' }
-                ];
-
-                variations.forEach(v => {
-                    const card = document.createElement('div');
-                    card.className = 'event-card full-width'; // Use full-width to span grid
-                    card.style.border = '1px solid #d2d2d7';
-                    card.style.padding = '1.5rem';
-                    card.style.marginBottom = '1rem';
-                    card.style.borderRadius = '8px';
-                    card.style.backgroundColor = '#fbfbfd';
-
-                    const title = document.createElement('h3');
-                    title.textContent = v.label;
-                    title.style.marginTop = '0';
-                    title.style.fontSize = '16px';
-                    title.style.marginBottom = '1rem';
-
-                    const formGroup = document.createElement('div');
-                    formGroup.className = 'form-group';
-
-                    const label = document.createElement('label');
-                    label.textContent = 'Client ID';
-
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.value = '1';
-                    input.id = `clientId_${v.id}`;
-
-                    const btn = document.createElement('button');
-                    btn.textContent = `Send ${v.label}`;
-                    btn.onclick = () => sendInAppRequest(v.id, input.id, btn);
-
-                    formGroup.appendChild(label);
-                    formGroup.appendChild(input);
-
-                    card.appendChild(title);
-                    card.appendChild(formGroup);
-                    card.appendChild(btn);
-
-                    dynamicFields.appendChild(card);
-                });
-            }
-        }
-
-        async function sendInAppRequest(variation, inputId, btnElement) {
-            const clientId = document.getElementById(inputId).value;
-            const responseDiv = document.getElementById('response');
-
-            if (!clientId) {
-                alert('Please enter a Client ID');
-                return;
-            }
-
-            const originalText = btnElement.textContent;
-            btnElement.disabled = true;
-            btnElement.textContent = 'Sending...';
-
-            responseDiv.style.display = 'none';
-            responseDiv.className = '';
-
-            try {
-                const res = await fetch('/api/send', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        variation: variation,
-                        requestType: 'interact',
-                        clientId: clientId
-                    })
-                });
-
-                const data = await res.json();
-
-                responseDiv.style.display = 'block';
-                responseDiv.textContent = JSON.stringify(data, null, 2);
-
-                if (res.ok) {
-                    responseDiv.classList.add('success');
-                } else {
-                    responseDiv.classList.add('error');
-                }
-            } catch (error) {
-                responseDiv.style.display = 'block';
-                responseDiv.textContent = 'Error: ' + error.message;
-                responseDiv.classList.add('error');
-            } finally {
-                btnElement.disabled = false;
-                btnElement.textContent = originalText;
-            }
-        }
-
-        function selectEvent(variation, title) {
-            currentVariation = variation;
-
-            // Update active state if not coming from group selection (internal call)
-            if (event && event.target.classList.contains('event-item')) {
-                document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
-                event.target.classList.add('active');
-            }
-
-            // Show form
-            const container = document.getElementById('formContainer');
-            const titleEl = document.getElementById('formTitle');
-            const dynamicFields = document.getElementById('dynamicFields');
-            const sendBtn = document.getElementById('sendBtn');
-            const responseDiv = document.getElementById('response');
-
-            container.style.display = 'block';
-            titleEl.textContent = title;
-            dynamicFields.innerHTML = '';
-            responseDiv.style.display = 'none';
-            sendBtn.style.display = 'block'; // Show send button
-
-            if (variation >= 5 && variation !== 8) {
-                renderCollectionFields(variation);
-            } else {
-                renderInteractFields();
-            }
-        }
-
-        function createField(key, value, isFullWidth = false) {
-            const div = document.createElement('div');
-            div.className = 'form-group';
-            if (isFullWidth) div.classList.add('full-width');
-
-            const label = document.createElement('label');
-            label.textContent = key;
-            label.htmlFor = key;
-
-            let input;
-            if (fieldOptions[key]) {
-                input = document.createElement('select');
-                input.id = key;
-                input.name = key;
-                fieldOptions[key].forEach(opt => {
-                    const option = document.createElement('option');
-                    option.value = opt;
-                    option.textContent = opt;
-                    if (opt === value) option.selected = true;
-                    input.appendChild(option);
-                });
-            } else {
-                input = document.createElement('input');
-                input.type = 'text';
-                input.id = key;
-                input.value = value;
-                input.name = key;
-            }
-
-            div.appendChild(label);
-            div.appendChild(input);
-            return div;
-        }
-
-        function renderInteractFields() {
-            const dynamicFields = document.getElementById('dynamicFields');
-            // Interact events just need Client ID
-            dynamicFields.appendChild(createField('clientId', '1', true));
-        }
-
-        function renderCollectionFields(variation) {
-            const dynamicFields = document.getElementById('dynamicFields');
-            const data = defaults[variation];
-            const order = fieldOrder[variation] || [];
-
-            // 1. Render ordered fields first
-            order.forEach(key => {
-                if (data.hasOwnProperty(key) && key !== 'kafkaTopic') {
-                    dynamicFields.appendChild(createField(key, data[key]));
-                }
-            });
-
-            // 2. Render remaining fields
-            for (const [key, value] of Object.entries(data)) {
-                if (!order.includes(key) && key !== 'kafkaTopic') {
-                    dynamicFields.appendChild(createField(key, value));
-                }
-            }
-        }
-
-        async function sendRequest() {
-            const sendBtn = document.getElementById('sendBtn');
-            const responseDiv = document.getElementById('response');
-
-            let body = { variation: currentVariation };
-
-            if (currentVariation >= 5 && currentVariation !== 8) {
-                body.requestType = 'collection';
-                body.payload = {};
-
-                // Always include kafkaTopic from defaults
-                if (defaults[currentVariation].kafkaTopic) {
-                    body.payload.kafkaTopic = defaults[currentVariation].kafkaTopic;
-                }
-
-                const inputs = document.querySelectorAll('#dynamicFields input, #dynamicFields select');
-                inputs.forEach(input => {
-                    const num = Number(input.value);
-                    // Simple heuristic: if it looks like a number and isn't empty, send as number
-                    // Exception: if the default value was a string, keep it as string (optional refinement)
-                    if (!isNaN(num) && input.value.trim() !== '') {
-                        const defaultVal = defaults[currentVariation][input.id];
-                        if (typeof defaultVal === 'number') {
-                            body.payload[input.id] = num;
-                        } else {
-                            body.payload[input.id] = input.value;
-                        }
-                    } else {
-                        body.payload[input.id] = input.value;
-                    }
-                });
-            } else {
-                body.requestType = 'interact';
-                body.clientId = document.getElementById('clientId').value;
-                if (!body.clientId) {
-                    alert('Please enter a Client ID');
-                    return;
-                }
-            }
-
-            sendBtn.disabled = true;
-            sendBtn.textContent = 'Sending...';
-            responseDiv.style.display = 'none';
-            responseDiv.className = '';
-
-            try {
-                const res = await fetch('/api/send', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(body)
-                });
-
-                const data = await res.json();
-
-                responseDiv.style.display = 'block';
-                responseDiv.textContent = JSON.stringify(data, null, 2);
-
-                if (res.ok) {
-                    responseDiv.classList.add('success');
-                } else {
-                    responseDiv.classList.add('error');
-                }
-            } catch (error) {
-                responseDiv.style.display = 'block';
-                responseDiv.textContent = 'Error: ' + error.message;
-                responseDiv.classList.add('error');
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send Request';
-            }
-        }
-    </script>
+    <script src="script.js"></script>
 </body>
 
 </html>

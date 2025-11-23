@@ -85,167 +85,193 @@ async function getValidToken() {
 }
 
 app.post('/api/send', async (req, res) => {
-    const { clientId, variation, requestType, payload } = req.body;
-
-    let token;
     try {
-        token = await getValidToken();
-    } catch (error) {
-        return res.status(500).json({ error: 'Token generation failed', details: error.message });
-    }
+        console.log('Received request body:', JSON.stringify(req.body, null, 2)); // Debug log
 
-    // Handle Collection API requests (Variations 5, 6, 7)
-    if (requestType === 'collection') {
-        try {
-            const response = await axios.post(COLLECTION_URL, payload, {
+        const { clientId, variation, data, customHeaders } = req.body;
+        let requestType = req.body.requestType;
+
+        // Auto-detect collection request based on kafkaTopic in root body (Flat Payload support)
+        if (req.body.kafkaTopic) {
+            requestType = 'collection';
+        }
+
+        // Determine requestType if not provided and not auto-detected
+        if (!requestType) {
+            if (variation >= 5 && variation !== 8) {
+                requestType = 'collection';
+            } else {
+                requestType = 'interact';
+            }
+        }
+
+        const token = await getValidToken();
+
+        if (requestType === 'collection') {
+            // --- Collection API Logic ---
+
+            // Determine payload: 
+            // 1. If 'data' exists, use it (Legacy/Form mode)
+            // 2. Otherwise, use req.body (Flat/Batch mode)
+            let payload = data || req.body;
+
+            // Ensure kafkaTopic is present
+            let kafkaTopic = payload.kafkaTopic;
+            // Removed redundant server-side mapping. Frontend now sends the correct topic.
+
+
+            // Construct final payload
+            // If using flat body, we might want to strip internal fields if they were sent (like requestType)
+            // But for now, we assume the client sends exactly what is needed.
+            const collectionPayload = {
+                ...payload,
+                kafkaTopic: kafkaTopic
+            };
+
+            // Ensure idCliente is a number if present
+            if (collectionPayload.idCliente) {
+                collectionPayload.idCliente = Number(collectionPayload.idCliente);
+            }
+
+            // Remove internal fields if they ended up in payload (e.g. from flat body)
+            delete collectionPayload.requestType;
+            delete collectionPayload.variation;
+            // Note: idCliente IS part of the payload for these events, so don't delete it unless it's the top-level auth clientId (which is not used for Collection)
+            // The user said "clientId shouldn't be there" referring to the wrapper clientId. 
+            // But inside the payload, idCliente is required for Siniestro/Recibo.
+
+            console.log('Sending Collection Payload:', JSON.stringify(collectionPayload, null, 2)); // Debug log
+
+            const response = await axios.post(COLLECTION_URL, collectionPayload, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'x-gw-ims-org-id': ORG_ID,
                     'x-api-key': API_KEY,
-                    'x-sanbox-name': SANDBOX_NAME,
+                    'x-sandbox-name': SANDBOX_NAME, // Fixed typo
                     'x-adobe-flow-id': FLOW_ID,
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache'
                 }
             });
             return res.json(response.data);
-        } catch (error) {
-            console.error('Error sending collection request:', error.response ? error.response.data : error.message);
-            return res.status(500).json({
-                error: error.message,
-                details: error.response ? error.response.data : null
-            });
-        }
-    }
 
-    // Handle Interact API requests (Variations 1-4, 8)
-    if (!clientId) {
-        return res.status(400).json({ error: 'Client ID is required' });
-    }
+        } else {
+            // --- Interact API Logic ---
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client ID is required' });
+            }
 
-    const timestamp = new Date().toISOString();
-    let body = {};
+            const timestamp = new Date().toISOString();
+            let body = {};
 
-    // Common structure
-    const identityMap = {
-        "identityMap": {
-            "clientId": [
-                {
-                    "id": clientId,
-                    "authenticatedState": "authenticated",
-                    "primary": true
-                }
-            ]
-        }
-    };
-
-    switch (parseInt(variation)) {
-        case 1:
-            body = {
-                "event": {
-                    "xdm": {
-                        "identityMap": identityMap.identityMap,
-                        "eventType": "inappmessageTracking.display",
-                        "alerts": {
-                            "clicks": 1,
-                            "impressions": [
-                                {
-                                    "ID": "1234",
-                                    "displays": 1,
-                                    "type": "app:ventajas y beneficios:home:si"
-                                }
-                            ]
-                        },
-                        "timestamp": timestamp
-                    }
+            // Common Identity Map
+            const identityMap = {
+                "identityMap": {
+                    "clientId": [
+                        {
+                            "id": clientId,
+                            "authenticatedState": "authenticated",
+                            "primary": true
+                        }
+                    ]
                 }
             };
-            break;
-        case 2:
-        case 8: // Variation 8 is PageView with Custom Headers
-            body = {
-                "event": {
-                    "xdm": {
-                        "identityMap": identityMap.identityMap,
-                        "eventType": "web.webpagedetails.pageViews",
-                        "web": {
-                            "webPageDetails": {
-                                "pageViews": {
-                                    "value": 1
+
+            switch (parseInt(variation)) {
+                case 1: // Display
+                    body = {
+                        "event": {
+                            "xdm": {
+                                "identityMap": identityMap.identityMap,
+                                "eventType": "inappmessageTracking.display",
+                                "alerts": {
+                                    "clicks": 1,
+                                    "impressions": [{ "ID": "1234", "displays": 1, "type": "app:ventajas y beneficios:home:si" }]
                                 },
-                                "isHomePage": true
+                                "timestamp": timestamp
                             }
-                        },
-                        "timestamp": timestamp
-                    }
-                }
-            };
-            break;
-        case 3:
-            body = {
-                "event": {
-                    "xdm": {
-                        "identityMap": identityMap.identityMap,
-                        "eventType": "inappmessageTracking.dismissals",
-                        "alerts": {
-                            "clicks": 1,
-                            "dismissals": 1,
-                            "impressions": [
-                                {
-                                    "ID": "1234",
-                                    "type": "app:ventajas y beneficios:home:si"
-                                }
-                            ]
-                        },
-                        "timestamp": timestamp
-                    }
-                }
-            };
-            break;
-        case 4:
-            body = {
-                "event": {
-                    "xdm": {
-                        "identityMap": identityMap.identityMap,
-                        "eventType": "inappmessageTracking.interact",
-                        "alerts": {
-                            "clicks": 1,
-                            "impressions": [
-                                {
-                                    "ID": "1234",
-                                    "selected": 1,
-                                    "type": "app:ventajas y beneficios:home:si"
-                                }
-                            ]
-                        },
-                        "timestamp": timestamp
-                    }
-                }
-            };
-            break;
-        default:
-            return res.status(400).json({ error: 'Invalid variation' });
-    }
+                        }
+                    };
+                    break;
+                case 2: // Page View
+                case 8: // Page View (Custom Headers)
+                    body = {
+                        "event": {
+                            "xdm": {
+                                "identityMap": identityMap.identityMap,
+                                "eventType": "web.webpagedetails.pageViews",
+                                "web": {
+                                    "webPageDetails": {
+                                        "pageViews": { "value": 1 },
+                                        "isHomePage": true,
+                                        "URL": "https://www.verti.es/hipotecas/seguros-de-hogar",
+                                        "name": "seguros-de-hogar"
+                                    }
+                                },
+                                "timestamp": timestamp
+                            }
+                        }
+                    };
+                    break;
+                case 3: // Dismiss
+                    body = {
+                        "event": {
+                            "xdm": {
+                                "identityMap": identityMap.identityMap,
+                                "eventType": "inappmessageTracking.dismissals",
+                                "alerts": {
+                                    "clicks": 1,
+                                    "dismissals": 1,
+                                    "impressions": [{ "ID": "1234", "type": "app:ventajas y beneficios:home:si" }]
+                                },
+                                "timestamp": timestamp
+                            }
+                        }
+                    };
+                    break;
+                case 4: // Interact
+                    body = {
+                        "event": {
+                            "xdm": {
+                                "identityMap": identityMap.identityMap,
+                                "eventType": "inappmessageTracking.interact",
+                                "alerts": {
+                                    "clicks": 1,
+                                    "impressions": [{ "ID": "1234", "selected": 1, "type": "app:ventajas y beneficios:home:si" }]
+                                },
+                                "timestamp": timestamp
+                            }
+                        }
+                    };
+                    break;
+                default:
+                    return res.status(400).json({ error: 'Invalid variation' });
+            }
 
-    try {
-        let headers = {
-            'Authorization': `Bearer ${token}`,
-            'x-gw-ims-org-id': ORG_ID,
-            'x-api-key': API_KEY,
-            'Content-Type': 'application/json'
-        };
-
-        if (parseInt(variation) === 8) {
-            headers = {
-                ...CUSTOM_HEADERS,
+            let headers = {
                 'Authorization': `Bearer ${token}`,
                 'x-gw-ims-org-id': ORG_ID,
-                'x-api-key': API_KEY
+                'x-api-key': API_KEY,
+                'Content-Type': 'application/json'
             };
+
+            if (parseInt(variation) === 8) {
+                // Merge custom headers, but ensure auth is present
+                headers = {
+                    ...headers, // Base headers
+                    ...CUSTOM_HEADERS, // Config headers
+                    ...customHeaders // Request headers
+                };
+                // Re-enforce auth if it was overwritten by empty custom headers (though spread order above protects it mostly, unless customHeaders has nulls)
+                headers['Authorization'] = `Bearer ${token}`;
+                headers['x-gw-ims-org-id'] = ORG_ID;
+                headers['x-api-key'] = API_KEY;
+            }
+
+            const response = await axios.post(ADOBE_URL, body, { headers });
+            res.json(response.data);
         }
 
-        const response = await axios.post(ADOBE_URL, body, { headers });
-        res.json(response.data);
     } catch (error) {
         console.error('Error sending request:', error.response ? error.response.data : error.message);
         res.status(500).json({
@@ -254,6 +280,125 @@ app.post('/api/send', async (req, res) => {
         });
     }
 });
+
+// Profile Check endpoint
+app.post('/api/profile', async (req, res) => {
+    try {
+        const { clientId } = req.body;
+
+        if (!clientId) {
+            return res.status(400).json({ error: 'clientId is required' });
+        }
+
+        const token = await getValidToken();
+
+        const profileUrl = `https://platform.adobe.io/data/core/ups/access/entities?schema.name=_xdm.context.profile&entityIdNS=clientId&entityId=${clientId}`;
+
+        const headers = {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'x-api-key': API_KEY,
+            'x-gw-ims-org-id': ORG_ID,
+            'x-sandbox-name': SANDBOX_NAME
+        };
+
+        const response = await axios.get(profileUrl, { headers });
+
+        // Extract the first entity (the key is dynamic, like "GlhYwEFgMQ")
+        const entityKey = Object.keys(response.data)[0];
+        const entityData = response.data[entityKey];
+        const entity = entityData?.entity;
+
+        if (!entity) {
+            return res.json({ message: 'No profile data found' });
+        }
+
+        // Fetch Profile Events
+        let events = [];
+        let eventsDebug = null;
+        try {
+            const mergePolicyId = entityData.mergePolicy?.id || "d6419369-aef2-4c60-a856-5d91ce6a68eb"; // Fallback to hardcoded if not found
+
+            const graphqlUrl = 'https://platform.adobe.io/data/xql/graphql';
+            const graphqlBody = {
+                "operationName": "profileExperienceEvent",
+                "variables": {
+                    "params": {
+                        "mergePolicyId": mergePolicyId,
+                        "profileId": entityKey,
+                        "schemaName": "_xdm.context.experienceevent",
+                        "relatedSchemaName": "_xdm.context.profile"
+                    },
+                    "page": {
+                        "limit": 25,
+                        "start": 1
+                    }
+                },
+                "query": "query profileExperienceEvent($page: PageInput!, $params: ProfileExperienceEventInput!) {\n  profileExperienceEvent(page: $page, params: $params) {\n    children\n    _links\n    __typename\n  }\n}\n"
+            };
+
+            const graphqlHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'x-api-key': 'acp_ui_platform', // Using the specific API key from the cURL
+                'x-gw-ims-org-id': ORG_ID,
+                'x-sandbox-name': SANDBOX_NAME,
+                'Origin': 'https://experience.adobe.com',
+                'Referer': 'https://experience.adobe.com/'
+            };
+
+            console.log('Fetching events for profile:', entityKey);
+            const eventsResponse = await axios.post(graphqlUrl, graphqlBody, { headers: graphqlHeaders });
+
+            if (eventsResponse.data.data && eventsResponse.data.data.profileExperienceEvent && eventsResponse.data.data.profileExperienceEvent.children) {
+                events = eventsResponse.data.data.profileExperienceEvent.children;
+            }
+
+            if (events.length === 0) {
+                // If no events found (or error), populate debug info
+                eventsDebug = {
+                    message: eventsResponse.data.errors ? "GraphQL Errors" : "No events returned",
+                    errors: eventsResponse.data.errors,
+                    profileIdUsed: entityKey,
+                    mergePolicyIdUsed: mergePolicyId,
+                    sandbox: SANDBOX_NAME,
+                    orgId: ORG_ID
+                };
+                console.log('Debug Info:', JSON.stringify(eventsDebug));
+            }
+        } catch (eventError) {
+            console.error('Error fetching events:', eventError.response ? eventError.response.data : eventError.message);
+            eventsDebug = {
+                message: "Exception caught",
+                error: eventError.response ? eventError.response.data : eventError.message,
+                profileIdUsed: entityKey
+            };
+            // Don't fail the whole request if events fail, just log it
+        }
+
+        // Filter and return only the requested fields
+        const filteredData = {
+            email: entity.personalEmail?.address || null,
+            firstName: entity.person?.name?.firstName || null,
+            lastName: entity.person?.name?.lastName || null,
+            middleName: entity.person?.name?.middleName || null,
+            clientId: entity.identityMap?.clientid?.[0]?.id || null,
+            customPersonalization: entity._mapfretechsa?.journeyOptimizer?.customPersonalization || null,
+            events: events,
+            debug: eventsDebug
+        };
+
+        res.json(filteredData);
+
+    } catch (error) {
+        console.error('Error fetching profile:', error.response ? error.response.data : error.message);
+        res.status(500).json({
+            error: error.message,
+            details: error.response ? error.response.data : null
+        });
+    }
+});
+
 
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
