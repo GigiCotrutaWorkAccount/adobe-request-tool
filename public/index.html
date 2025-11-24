@@ -18,8 +18,7 @@
         <div class="event-group-label">Web Events</div>
         <div class="event-item" onclick="selectEvent(2, 'web.webpagedetails.pageViews')">web.webpagedetails.pageViews
         </div>
-        <div class="event-item" onclick="selectEvent(8, 'web.webpagedetails.pageViews (Custom Headers)')">
-            web.webpagedetails.pageViews (Custom Headers)</div>
+
 
         <div class="sidebar-separator"></div>
         <div class="event-group-label">In-App Events</div>
@@ -45,6 +44,12 @@
                 <span class="slider"></span>
             </label>
             <span class="theme-label" onclick="setTheme(true)">Dark Mode</span>
+            <div class="settings-icon" onclick="openSettings()" title="Settings">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path
+                        d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
+                </svg>
+            </div>
         </div>
     </div>
 
@@ -129,6 +134,53 @@
                     <h3 style="font-size: 16px; margin-bottom: 1rem;">Profile Events</h3>
                     <div id="profile-events"
                         style="background: var(--response-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--response-border); max-height: 600px; overflow-y: auto;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Configuration</h2>
+                <span class="close" onclick="closeSettings()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="tabs">
+                    <button class="tab-link active" onclick="openTab(event, 'Environments')">Environments</button>
+                    <!-- Add more tabs here if needed -->
+                </div>
+
+                <div id="Environments" class="tab-content" style="display: block;">
+                    <div class="env-controls">
+                        <div class="form-group">
+                            <label for="activeEnv">Active Environment</label>
+                            <select id="activeEnv" onchange="changeEnvironment()">
+                                <option value="">None (Use Config)</option>
+                            </select>
+                        </div>
+                        <button class="secondary-btn" onclick="createNewEnv()">+ New Environment</button>
+                    </div>
+
+                    <div id="envEditor"
+                        style="display: none; margin-top: 1.5rem; border-top: 1px solid var(--header-border); padding-top: 1rem;">
+                        <div class="form-group">
+                            <label for="envName">Environment Name</label>
+                            <input type="text" id="envName" placeholder="e.g., PROD, DEV">
+                        </div>
+
+                        <h3>Variables</h3>
+                        <div id="envVarsList">
+                            <!-- Variable rows will be added here -->
+                        </div>
+                        <button class="secondary-btn small-btn" onclick="addEnvVarRow()">+ Add Variable</button>
+
+                        <div class="modal-footer" style="margin-top: 1.5rem;">
+                            <button class="danger-btn" onclick="deleteCurrentEnv()">Delete</button>
+                            <button onclick="saveEnvironment()">Save</button>
+                        </div>
                     </div>
                 </div>
             </div>

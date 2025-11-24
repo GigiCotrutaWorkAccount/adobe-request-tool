@@ -7,6 +7,10 @@ const qs = require('qs'); // Need qs for x-www-form-urlencoded
 let config;
 try {
     config = require('./config');
+    // Handle case where config exports DEV/PROD objects
+    if (config.DEV) {
+        config = config.DEV;
+    }
 } catch (e) {
     console.log('config.js not found, using environment variables');
     config = {
@@ -49,38 +53,50 @@ const {
 } = config;
 
 // Token State
-let accessToken = null;
-let tokenGenerationTime = null;
+const tokenCache = {}; // Key: clientId, Value: { token, time }
 
-async function getValidToken() {
+async function getValidToken(overrides = {}) {
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
 
-    if (accessToken && tokenGenerationTime && (now - tokenGenerationTime < twentyFourHours)) {
-        console.log('Using cached token');
-        return accessToken;
+    const currentClientId = overrides.CLIENT_ID || CLIENT_ID;
+    const currentClientSecret = overrides.CLIENT_SECRET || CLIENT_SECRET;
+    const currentTokenUrl = overrides.TOKEN_URL || TOKEN_URL;
+    const currentGrantType = overrides.GRANT_TYPE || GRANT_TYPE;
+    const currentScope = overrides.SCOPE || SCOPE;
+
+    // Check cache for this specific client ID
+    if (tokenCache[currentClientId] && (now - tokenCache[currentClientId].time < twentyFourHours)) {
+        console.log(`Using cached token for client ${currentClientId}`);
+        return tokenCache[currentClientId].token;
     }
 
-    console.log('Fetching new token...');
+    console.log(`Fetching new token for client ${currentClientId}...`);
     try {
-        const response = await axios.post(TOKEN_URL, qs.stringify({
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET,
-            grant_type: GRANT_TYPE,
-            scope: SCOPE
+        const response = await axios.post(currentTokenUrl, qs.stringify({
+            client_id: currentClientId,
+            client_secret: currentClientSecret,
+            grant_type: currentGrantType,
+            scope: currentScope
         }), {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
         });
 
-        accessToken = response.data.access_token;
-        tokenGenerationTime = now;
+        const newToken = response.data.access_token;
+        tokenCache[currentClientId] = {
+            token: newToken,
+            time: now
+        };
         console.log('New token generated successfully');
-        return accessToken;
+        return newToken;
     } catch (error) {
-        console.error('Error fetching token:', error.response ? error.response.data : error.message);
-        throw new Error('Failed to generate access token');
+        const errorDetails = error.response ? error.response.data : error.message;
+        console.error('Error fetching token:', errorDetails);
+        const newError = new Error('Failed to generate access token');
+        newError.details = errorDetails;
+        throw newError;
     }
 }
 
@@ -88,8 +104,16 @@ app.post('/api/send', async (req, res) => {
     try {
         console.log('Received request body:', JSON.stringify(req.body, null, 2)); // Debug log
 
-        const { clientId, variation, data, customHeaders } = req.body;
+        const { clientId, variation, data, customHeaders, envVars } = req.body;
         let requestType = req.body.requestType;
+
+        // Use overrides or defaults
+        const currentAdobeUrl = envVars?.ADOBE_URL || ADOBE_URL;
+        const currentCollectionUrl = envVars?.COLLECTION_URL || COLLECTION_URL;
+        const currentApiKey = envVars?.API_KEY || API_KEY;
+        const currentOrgId = envVars?.ORG_ID || ORG_ID;
+        const currentSandboxName = envVars?.SANDBOX_NAME || SANDBOX_NAME;
+        const currentFlowId = envVars?.FLOW_ID || FLOW_ID;
 
         // Auto-detect collection request based on kafkaTopic in root body (Flat Payload support)
         if (req.body.kafkaTopic) {
@@ -105,55 +129,42 @@ app.post('/api/send', async (req, res) => {
             }
         }
 
-        const token = await getValidToken();
+        const token = await getValidToken(envVars);
 
         if (requestType === 'collection') {
             // --- Collection API Logic ---
-
-            // Determine payload: 
-            // 1. If 'data' exists, use it (Legacy/Form mode)
-            // 2. Otherwise, use req.body (Flat/Batch mode)
             let payload = data || req.body;
-
-            // Ensure kafkaTopic is present
             let kafkaTopic = payload.kafkaTopic;
-            // Removed redundant server-side mapping. Frontend now sends the correct topic.
 
-
-            // Construct final payload
-            // If using flat body, we might want to strip internal fields if they were sent (like requestType)
-            // But for now, we assume the client sends exactly what is needed.
             const collectionPayload = {
                 ...payload,
                 kafkaTopic: kafkaTopic
             };
 
-            // Ensure idCliente is a number if present
             if (collectionPayload.idCliente) {
                 collectionPayload.idCliente = Number(collectionPayload.idCliente);
             }
 
-            // Remove internal fields if they ended up in payload (e.g. from flat body)
             delete collectionPayload.requestType;
             delete collectionPayload.variation;
-            // Note: idCliente IS part of the payload for these events, so don't delete it unless it's the top-level auth clientId (which is not used for Collection)
-            // The user said "clientId shouldn't be there" referring to the wrapper clientId. 
-            // But inside the payload, idCliente is required for Siniestro/Recibo.
+            delete collectionPayload.envVars;
 
-            console.log('Sending Collection Payload:', JSON.stringify(collectionPayload, null, 2)); // Debug log
+            console.log('Sending Collection Payload:', JSON.stringify(collectionPayload, null, 2));
 
-            const response = await axios.post(COLLECTION_URL, collectionPayload, {
+            const response = await axios.post(currentCollectionUrl, collectionPayload, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'x-gw-ims-org-id': ORG_ID,
-                    'x-api-key': API_KEY,
-                    'x-sandbox-name': SANDBOX_NAME, // Fixed typo
-                    'x-adobe-flow-id': FLOW_ID,
+                    'x-gw-ims-org-id': currentOrgId,
+                    'x-api-key': currentApiKey,
+                    'x-sandbox-name': currentSandboxName,
+                    'x-adobe-flow-id': currentFlowId,
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
+                    'Cache-Control': 'no-cache',
+                    ...customHeaders
                 }
             });
-            return res.json(response.data);
+
+            res.json(response.data);
 
         } else {
             // --- Interact API Logic ---
@@ -164,7 +175,6 @@ app.post('/api/send', async (req, res) => {
             const timestamp = new Date().toISOString();
             let body = {};
 
-            // Common Identity Map
             const identityMap = {
                 "identityMap": {
                     "clientId": [
@@ -194,7 +204,6 @@ app.post('/api/send', async (req, res) => {
                     };
                     break;
                 case 2: // Page View
-                case 8: // Page View (Custom Headers)
                     body = {
                         "event": {
                             "xdm": {
@@ -250,33 +259,21 @@ app.post('/api/send', async (req, res) => {
 
             let headers = {
                 'Authorization': `Bearer ${token}`,
-                'x-gw-ims-org-id': ORG_ID,
-                'x-api-key': API_KEY,
+                'x-gw-ims-org-id': currentOrgId,
+                'x-api-key': currentApiKey,
+                'x-sandbox-name': currentSandboxName,
                 'Content-Type': 'application/json'
             };
 
-            if (parseInt(variation) === 8) {
-                // Merge custom headers, but ensure auth is present
-                headers = {
-                    ...headers, // Base headers
-                    ...CUSTOM_HEADERS, // Config headers
-                    ...customHeaders // Request headers
-                };
-                // Re-enforce auth if it was overwritten by empty custom headers (though spread order above protects it mostly, unless customHeaders has nulls)
-                headers['Authorization'] = `Bearer ${token}`;
-                headers['x-gw-ims-org-id'] = ORG_ID;
-                headers['x-api-key'] = API_KEY;
-            }
-
-            const response = await axios.post(ADOBE_URL, body, { headers });
+            const response = await axios.post(currentAdobeUrl, body, { headers });
             res.json(response.data);
         }
 
     } catch (error) {
-        console.error('Error sending request:', error.response ? error.response.data : error.message);
+        console.error('Error processing request:', error.message);
         res.status(500).json({
             error: error.message,
-            details: error.response ? error.response.data : null
+            details: error.details || (error.response ? error.response.data : null)
         });
     }
 });
@@ -284,22 +281,27 @@ app.post('/api/send', async (req, res) => {
 // Profile Check endpoint
 app.post('/api/profile', async (req, res) => {
     try {
-        const { clientId } = req.body;
+        const { clientId, envVars } = req.body;
 
         if (!clientId) {
             return res.status(400).json({ error: 'clientId is required' });
         }
 
-        const token = await getValidToken();
+        // Use overrides or defaults
+        const currentApiKey = envVars?.API_KEY || API_KEY;
+        const currentOrgId = envVars?.ORG_ID || ORG_ID;
+        const currentSandboxName = envVars?.SANDBOX_NAME || SANDBOX_NAME;
+
+        const token = await getValidToken(envVars);
 
         const profileUrl = `https://platform.adobe.io/data/core/ups/access/entities?schema.name=_xdm.context.profile&entityIdNS=clientId&entityId=${clientId}`;
 
         const headers = {
             'Accept': 'application/json',
             'Authorization': `Bearer ${token}`,
-            'x-api-key': API_KEY,
-            'x-gw-ims-org-id': ORG_ID,
-            'x-sandbox-name': SANDBOX_NAME
+            'x-api-key': currentApiKey,
+            'x-gw-ims-org-id': currentOrgId,
+            'x-sandbox-name': currentSandboxName
         };
 
         const response = await axios.get(profileUrl, { headers });
@@ -341,8 +343,8 @@ app.post('/api/profile', async (req, res) => {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
                 'x-api-key': 'acp_ui_platform', // Using the specific API key from the cURL
-                'x-gw-ims-org-id': ORG_ID,
-                'x-sandbox-name': SANDBOX_NAME,
+                'x-gw-ims-org-id': currentOrgId,
+                'x-sandbox-name': currentSandboxName,
                 'Origin': 'https://experience.adobe.com',
                 'Referer': 'https://experience.adobe.com/'
             };
@@ -361,8 +363,8 @@ app.post('/api/profile', async (req, res) => {
                     errors: eventsResponse.data.errors,
                     profileIdUsed: entityKey,
                     mergePolicyIdUsed: mergePolicyId,
-                    sandbox: SANDBOX_NAME,
-                    orgId: ORG_ID
+                    sandbox: currentSandboxName,
+                    orgId: currentOrgId
                 };
                 console.log('Debug Info:', JSON.stringify(eventsDebug));
             }
@@ -394,7 +396,7 @@ app.post('/api/profile', async (req, res) => {
         console.error('Error fetching profile:', error.response ? error.response.data : error.message);
         res.status(500).json({
             error: error.message,
-            details: error.response ? error.response.data : null
+            details: error.details || (error.response ? error.response.data : null)
         });
     }
 });

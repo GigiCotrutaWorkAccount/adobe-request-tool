@@ -183,6 +183,10 @@ async function sendInAppRequest(variation, inputId, btnElement) {
     responseDiv.style.display = 'none';
     responseDiv.className = '';
 
+    // Get active environment variables
+    const env = environments.find(e => e.id === activeEnvId);
+    const envVars = env ? env.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) : {};
+
     try {
         const res = await fetch('/api/send', {
             method: 'POST',
@@ -192,7 +196,8 @@ async function sendInAppRequest(variation, inputId, btnElement) {
             body: JSON.stringify({
                 variation: variation,
                 requestType: 'interact',
-                clientId: clientId
+                clientId: clientId,
+                envVars: envVars
             })
         });
 
@@ -240,7 +245,7 @@ function selectEvent(variation, title) {
     responseDiv.style.display = 'none';
     sendBtn.style.display = 'block'; // Show send button
 
-    if (variation >= 5 && variation !== 8) {
+    if (variation >= 5) {
         renderCollectionFields(variation);
     } else {
         renderInteractFields();
@@ -330,13 +335,17 @@ async function checkProfile() {
         return;
     }
 
+    // Get active environment variables
+    const env = environments.find(e => e.id === activeEnvId);
+    const envVars = env ? env.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) : {};
+
     try {
         const res = await fetch('/api/profile', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ clientId })
+            body: JSON.stringify({ clientId, envVars })
         });
 
         const data = await res.json();
@@ -479,6 +488,10 @@ async function sendRequest() {
     responseDiv.style.display = 'none';
     responseDiv.className = '';
 
+    // Get active environment variables
+    const env = environments.find(e => e.id === activeEnvId);
+    const envVars = env ? env.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) : {};
+
     try {
         const res = await fetch('/api/send', {
             method: 'POST',
@@ -488,7 +501,8 @@ async function sendRequest() {
             body: JSON.stringify({
                 variation: currentVariation,
                 data: data,
-                clientId: data.clientId // Pass clientId at top level too for Interact
+                clientId: data.clientId, // Pass clientId at top level too for Interact
+                envVars: envVars
             })
         });
 
@@ -664,3 +678,187 @@ async function processBatch() {
 
     logDiv.innerHTML += 'Batch process completed.';
 }
+
+// --- Environment Management ---
+
+let environments = [];
+let activeEnvId = null;
+
+// Load environments from localStorage
+function loadEnvironments() {
+    const storedEnvs = localStorage.getItem('environments');
+    if (storedEnvs) {
+        environments = JSON.parse(storedEnvs);
+    }
+
+    const storedActiveId = localStorage.getItem('activeEnvId');
+    if (storedActiveId) {
+        activeEnvId = storedActiveId;
+    }
+
+    renderEnvSelector();
+}
+
+function saveEnvironments() {
+    localStorage.setItem('environments', JSON.stringify(environments));
+    localStorage.setItem('activeEnvId', activeEnvId || '');
+    renderEnvSelector();
+}
+
+function renderEnvSelector() {
+    const selector = document.getElementById('activeEnv');
+    selector.innerHTML = '<option value="">None (Use Config)</option>';
+
+    environments.forEach(env => {
+        const option = document.createElement('option');
+        option.value = env.id;
+        option.textContent = env.name;
+        if (env.id === activeEnvId) {
+            option.selected = true;
+        }
+        selector.appendChild(option);
+    });
+
+    // Also update the editor if open
+    if (activeEnvId) {
+        renderEnvEditor(activeEnvId);
+    } else {
+        document.getElementById('envEditor').style.display = 'none';
+    }
+}
+
+function createNewEnv() {
+    const newEnv = {
+        id: Date.now().toString(),
+        name: 'New Environment',
+        variables: [
+            { key: 'CLIENT_ID', value: '' },
+            { key: 'CLIENT_SECRET', value: '' },
+            { key: 'ORG_ID', value: '' },
+            { key: 'API_KEY', value: '' }
+        ]
+    };
+    environments.push(newEnv);
+    activeEnvId = newEnv.id;
+    saveEnvironments();
+    renderEnvEditor(newEnv.id);
+}
+
+function changeEnvironment() {
+    const selector = document.getElementById('activeEnv');
+    activeEnvId = selector.value || null;
+    saveEnvironments();
+
+    if (activeEnvId) {
+        renderEnvEditor(activeEnvId);
+    } else {
+        document.getElementById('envEditor').style.display = 'none';
+    }
+}
+
+function renderEnvEditor(envId) {
+    const env = environments.find(e => e.id === envId);
+    if (!env) return;
+
+    document.getElementById('envEditor').style.display = 'block';
+    document.getElementById('envName').value = env.name;
+
+    const varsList = document.getElementById('envVarsList');
+    varsList.innerHTML = '';
+
+    env.variables.forEach((v, index) => {
+        const row = document.createElement('div');
+        row.className = 'var-row';
+        row.innerHTML = `
+            <input type="text" placeholder="Key" value="${v.key}" onchange="updateEnvVar(${index}, 'key', this.value)">
+            <input type="text" placeholder="Value" value="${v.value}" onchange="updateEnvVar(${index}, 'value', this.value)">
+            <span class="remove-var" onclick="removeEnvVar(${index})">&times;</span>
+        `;
+        varsList.appendChild(row);
+    });
+}
+
+function updateEnvVar(index, field, value) {
+    const env = environments.find(e => e.id === activeEnvId);
+    if (env) {
+        env.variables[index][field] = value;
+    }
+}
+
+function removeEnvVar(index) {
+    const env = environments.find(e => e.id === activeEnvId);
+    if (env) {
+        // Sync name before re-render
+        const currentName = document.getElementById('envName').value;
+        if (currentName) env.name = currentName;
+
+        env.variables.splice(index, 1);
+        renderEnvEditor(activeEnvId);
+    }
+}
+
+function addEnvVarRow() {
+    const env = environments.find(e => e.id === activeEnvId);
+    if (env) {
+        // Sync name before re-render
+        const currentName = document.getElementById('envName').value;
+        if (currentName) env.name = currentName;
+
+        env.variables.push({ key: '', value: '' });
+        renderEnvEditor(activeEnvId);
+    }
+}
+
+function saveEnvironment() {
+    const envName = document.getElementById('envName').value;
+    const env = environments.find(e => e.id === activeEnvId);
+    if (env) {
+        env.name = envName;
+        saveEnvironments();
+        alert('Environment saved!');
+    }
+}
+
+function deleteCurrentEnv() {
+    if (!confirm('Are you sure you want to delete this environment?')) return;
+
+    environments = environments.filter(e => e.id !== activeEnvId);
+    activeEnvId = null;
+    saveEnvironments();
+}
+
+// UI Handlers
+function openSettings() {
+    document.getElementById('settingsModal').style.display = 'block';
+    loadEnvironments();
+}
+
+function closeSettings() {
+    document.getElementById('settingsModal').style.display = 'none';
+}
+
+function openTab(evt, tabName) {
+    const tabContent = document.getElementsByClassName("tab-content");
+    for (let i = 0; i < tabContent.length; i++) {
+        tabContent[i].style.display = "none";
+    }
+
+    const tabLinks = document.getElementsByClassName("tab-link");
+    for (let i = 0; i < tabLinks.length; i++) {
+        tabLinks[i].className = tabLinks[i].className.replace(" active", "");
+    }
+
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.className += " active";
+}
+
+// Close modal when clicking outside
+window.onclick = function (event) {
+    const modal = document.getElementById('settingsModal');
+    if (event.target == modal) {
+        closeSettings();
+    }
+}
+
+// Initialize
+loadEnvironments();
