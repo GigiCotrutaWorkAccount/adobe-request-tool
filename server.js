@@ -164,7 +164,10 @@ app.post('/api/send', async (req, res) => {
                 }
             });
 
-            res.json(response.data);
+            res.json({
+                adobeResponse: response.data,
+                requestPayload: collectionPayload
+            });
 
         } else {
             // --- Interact API Logic ---
@@ -266,7 +269,10 @@ app.post('/api/send', async (req, res) => {
             };
 
             const response = await axios.post(currentAdobeUrl, body, { headers });
-            res.json(response.data);
+            res.json({
+                adobeResponse: response.data,
+                requestPayload: body
+            });
         }
 
     } catch (error) {

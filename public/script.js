@@ -204,7 +204,8 @@ async function sendInAppRequest(variation, inputId, btnElement) {
         const data = await res.json();
 
         responseDiv.style.display = 'block';
-        responseDiv.textContent = JSON.stringify(data, null, 2);
+        // Use the new formatter
+        responseDiv.innerHTML = formatResponseDisplay(data, parseInt(variation));
 
         if (res.ok) {
             responseDiv.classList.add('success');
@@ -406,53 +407,18 @@ async function checkProfile() {
             // Render Events
             const eventsDiv = document.getElementById('profile-events');
             if (data.events && data.events.length > 0) {
-                let eventsHtml = '<div style="display: grid; gap: 1rem;">';
-                data.events.forEach(event => {
-                    const entity = event.entity;
-                    const eventType = entity.eventType || 'Unknown Event';
-                    const timestamp = new Date(event.timestamp).toLocaleString();
+                const eventsHtml = data.events.map(event => {
+                    let jsonString = JSON.stringify(event, null, 2);
+                    // Highlight "eventType": "value"
+                    // Regex looks for "eventType": "..."
+                    jsonString = jsonString.replace(/"eventType":\s*"([^"]+)"/g, '<span style="color: #d32f2f; font-weight: bold;">"eventType": "$1"</span>');
 
-                    // Extract custom data (usually in _mapfretechsa or similar, but let's be generic or look for specific keys)
-                    // The user example shows _mapfretechsa
-                    let customData = {};
-                    if (entity._mapfretechsa) {
-                        customData = entity._mapfretechsa;
-                    }
+                    return `<pre style="background: var(--card-bg); padding: 1rem; border-radius: 6px; border: 1px solid var(--input-border); overflow-x: auto;">${jsonString}</pre>`;
+                }).join('<hr style="border: 0; border-top: 1px solid var(--input-border); margin: 1rem 0;">');
 
-                    eventsHtml += `<div style="background: var(--card-bg); padding: 1rem; border-radius: 6px; border: 1px solid var(--input-border);">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; align-items: center;">
-                            <strong style="color: #0071e3; font-size: 13px;">${eventType}</strong>
-                            <span style="font-size: 11px; color: var(--label-color);">${timestamp}</span>
-                        </div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem;">`;
-
-                    // Helper to recursively render object
-                    function renderObject(obj, prefix = '') {
-                        let html = '';
-                        for (const [key, value] of Object.entries(obj)) {
-                            if (typeof value === 'object' && value !== null) {
-                                html += renderObject(value, prefix + key + '.');
-                            } else {
-                                html += `<div style="overflow: hidden; text-overflow: ellipsis;">
-                                    <div style="font-weight: 500; font-size: 11px; color: var(--label-color); margin-bottom: 2px;">${prefix}${key}</div>
-                                    <div style="font-size: 13px; color: var(--text-color);">${value}</div>
-                                </div>`;
-                            }
-                        }
-                        return html;
-                    }
-
-                    eventsHtml += renderObject(customData);
-                    eventsHtml += `</div></div>`;
-                });
-                eventsHtml += '</div>';
                 eventsDiv.innerHTML = eventsHtml;
             } else {
-                let noEventsMsg = '<div style="color: var(--label-color); font-style: italic;">No events found</div>';
-                if (data.debug) {
-                    noEventsMsg += `<div style="margin-top: 0.5rem; color: #ff3b30; font-size: 11px;">Debug: ${JSON.stringify(data.debug)}</div>`;
-                }
-                eventsDiv.innerHTML = noEventsMsg;
+                eventsDiv.innerHTML = '<p style="color: var(--text-color); padding: 1rem;">No events found.</p>';
             }
 
             responseDiv.style.display = 'grid';
@@ -509,7 +475,8 @@ async function sendRequest() {
         const result = await res.json();
 
         responseDiv.style.display = 'block';
-        responseDiv.textContent = JSON.stringify(result, null, 2);
+        // Use the new formatter
+        responseDiv.innerHTML = formatResponseDisplay(result, parseInt(currentVariation));
 
         if (res.ok) {
             responseDiv.classList.add('success');
@@ -862,3 +829,65 @@ window.onclick = function (event) {
 
 // Initialize
 loadEnvironments();
+
+function formatResponseDisplay(data, variation) {
+    const { adobeResponse, requestPayload } = data;
+    let displayContent = '';
+
+    // 1. Display Request Details based on variation
+    if (requestPayload) {
+        displayContent += '<h3>Request Details</h3>';
+
+        // Siniestro (5) & Recibo (6, 9)
+        if (variation === 5 || variation === 6 || variation === 9) {
+            const mapfreData = requestPayload.event?.xdm?.kafkaReciboSituacion?._mapfretechsa ||
+                requestPayload.event?.xdm?.kafkaSiniestroSituacion?._mapfretechsa ||
+                requestPayload.event?.xdm?.kafkaPolizaSituacion?._mapfretechsa;
+
+            if (mapfreData) {
+                displayContent += `<pre>${JSON.stringify(mapfreData, null, 2)}</pre>`;
+            } else {
+                displayContent += '<p>No _mapfretechsa data found.</p>';
+            }
+        }
+        // Cliente Contacto (7)
+        else if (variation === 7) {
+            const contactData = requestPayload.event?.xdm?.kafkaClienteContacto?._mapfretechsa?.customer?.contact;
+            if (contactData) {
+                const filteredData = {
+                    homeAddress: contactData.homeAddress,
+                    person: contactData.person,
+                    personalEmail: {
+                        address: contactData.personalEmail?.address
+                    }
+                };
+                displayContent += `<pre>${JSON.stringify(filteredData, null, 2)}</pre>`;
+            } else {
+                displayContent += '<p>No contact data found.</p>';
+            }
+        }
+        // InApp (1, 3, 4)
+        else if (variation === 1 || variation === 3 || variation === 4) {
+            const impressions = requestPayload.event?.xdm?.alerts?.impressions;
+            if (impressions) {
+                const filteredImpressions = impressions.map(imp => ({
+                    type: imp.type,
+                    ID: imp.ID
+                }));
+                displayContent += `<pre>"impressions": ${JSON.stringify(filteredImpressions, null, 2)}</pre>`;
+            } else {
+                displayContent += '<p>No impressions found.</p>';
+            }
+        }
+        // Default: Show full payload for others
+        else {
+            displayContent += `<pre>${JSON.stringify(requestPayload, null, 2)}</pre>`;
+        }
+    }
+
+    // 2. Display Adobe Response
+    displayContent += '<h3>Adobe Response</h3>';
+    displayContent += `<pre>${JSON.stringify(adobeResponse, null, 2)}</pre>`;
+
+    return displayContent;
+}
