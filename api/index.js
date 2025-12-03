@@ -61,8 +61,8 @@ async function getValidToken(overrides = {}) {
 
     const currentClientId = overrides.CLIENT_ID || CLIENT_ID;
     const currentClientSecret = overrides.CLIENT_SECRET || CLIENT_SECRET;
-    const currentTokenUrl = overrides.TOKEN_URL || TOKEN_URL;
-    const currentGrantType = overrides.GRANT_TYPE || GRANT_TYPE;
+    const currentTokenUrl = overrides.TOKEN_URL || TOKEN_URL || 'https://ims-na1.adobelogin.com/ims/token/v3';
+    const currentGrantType = overrides.GRANT_TYPE || GRANT_TYPE || 'client_credentials';
     const currentScope = overrides.SCOPE || SCOPE;
 
     // Check cache for this specific client ID
@@ -72,6 +72,7 @@ async function getValidToken(overrides = {}) {
     }
 
     console.log(`Fetching new token for client ${currentClientId}...`);
+    console.log(`Using Token URL: ${currentTokenUrl}`);
     try {
         const response = await axios.post(currentTokenUrl, qs.stringify({
             client_id: currentClientId,

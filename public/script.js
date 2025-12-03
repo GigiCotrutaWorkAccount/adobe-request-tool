@@ -729,6 +729,7 @@ function createNewEnv() {
             { key: 'CLIENT_SECRET', value: '' },
             { key: 'ORG_ID', value: '' },
             { key: 'API_KEY', value: '' },
+            { key: 'SCOPE', value: '' },
             { key: 'COLLECTION_URL', value: '' },
             { key: 'FLOW_ID', value: '' },
             { key: 'SANDBOX_NAME', value: '' }
@@ -811,7 +812,7 @@ function saveEnvironment() {
     if (env) {
         env.name = envName;
         saveEnvironments();
-        alert('Environment saved!');
+        closeSettings();
     }
 }
 
