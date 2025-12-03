@@ -6,7 +6,7 @@ const qs = require('qs'); // Need qs for x-www-form-urlencoded
 
 let config;
 try {
-    config = require('./config');
+    config = require('../config');
     // Handle case where config exports DEV/PROD objects
     if (config.DEV) {
         config = config.DEV;
@@ -34,7 +34,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Destructure configuration
 const {
@@ -130,6 +130,9 @@ app.post('/api/send', async (req, res) => {
         }
 
         const token = await getValidToken(envVars);
+
+        console.log('Using Adobe URL:', currentAdobeUrl);
+        console.log('Using Collection URL:', currentCollectionUrl);
 
         if (requestType === 'collection') {
             // --- Collection API Logic ---
@@ -342,7 +345,7 @@ app.post('/api/profile', async (req, res) => {
                         "start": 1
                     }
                 },
-                "query": "query profileExperienceEvent($page: PageInput!, $params: ProfileExperienceEventInput!) {\n  profileExperienceEvent(page: $page, params: $params) {\n    children\n    _links\n    __typename\n  }\n}\n"
+                "query": "query profileExperienceEvent($page: PageInput!, $params: ProfileExperienceEventInput!) {\\n  profileExperienceEvent(page: $page, params: $params) {\\n    children\\n    _links\\n    __typename\\n  }\\n}\\n"
             };
 
             const graphqlHeaders = {

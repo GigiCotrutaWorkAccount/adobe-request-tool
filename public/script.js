@@ -1,4 +1,5 @@
 let currentVariation = null;
+const formState = {}; // Store form values
 
 // Theme Management
 const themeCheckbox = document.getElementById('checkbox');
@@ -28,62 +29,62 @@ if (savedTheme === 'dark') {
 const defaults = {
     5: {
         "kafkaTopic": "es-verti.gcp.neurona.fct.siniestro.situacion",
-        "idSiniestro": 2405782,
-        "numeroSiniestro": 1415379,
-        "estado": "ABIE",
-        "producto": "AU01",
-        "idPoliza": 107989,
-        "numeroPoliza": 20000006,
-        "riesgo": "OPEL ASTRA 1.8 EDITION 140 AUTO",
-        "fechaDeclaracion": "19/11/2025",
-        "fechaOcurrencia": "1S11/2024",
-        "horaOcurrencia": "19/11/2024 09:00:00",
-        "modoDeclaracion": "Reclamación CICOS",
-        "fechaAuditoria": "19/11/2025",
-        "tipoSiniestro": "MSPC",
-        "motivoSituacion": "APCI",
-        "idCliente": "1" // Default to 1
+        "idSiniestro": "",
+        "numeroSiniestro": "",
+        "estado": "",
+        "producto": "",
+        "idPoliza": "",
+        "numeroPoliza": "",
+        "riesgo": "",
+        "fechaDeclaracion": "",
+        "fechaOcurrencia": "",
+        "horaOcurrencia": "",
+        "modoDeclaracion": "",
+        "fechaAuditoria": "",
+        "tipoSiniestro": "",
+        "motivoSituacion": "",
+        "idCliente": ""
     },
     6: {
         "kafkaTopic": "es-verti.gcp.neurona.fct.recibo-total.situacion",
-        "anioRecibo": "2025",
-        "numeroRecibo": "3640617",
-        "tipoRecibo": "R",
-        "fechaEfecto": "12/09/2025",
-        "fechaVencimiento": "12/09/2026",
-        "fechaEmisionPoliza": "12/11/2025",
-        "fechaAlta": "12/11/2025",
-        "idPoliza": 3363290,
-        "numeroPoliza": 45134587,
-        "importeTotal": 520.01,
-        "importeNeto": 476.7,
-        "nombreMediador": "VERTI TELEFONO",
-        "numeroSitutacionRecibo": 9,
-        "idCliente": "1",
-        "medioPago": "OTRO",
-        "fechaEnvioCobro": "19/11/2025",
-        "estadoReciboCliente": "PIMP"
+        "anioRecibo": "",
+        "numeroRecibo": "",
+        "tipoRecibo": "",
+        "fechaEfecto": "",
+        "fechaVencimiento": "",
+        "fechaEmisionPoliza": "",
+        "fechaAlta": "",
+        "idPoliza": "",
+        "numeroPoliza": "",
+        "importeTotal": "",
+        "importeNeto": "",
+        "nombreMediador": "",
+        "numeroSitutacionRecibo": "",
+        "idCliente": "",
+        "medioPago": "",
+        "fechaEnvioCobro": "",
+        "estadoReciboCliente": ""
     },
     7: {
-        "idCliente": "1",
-        "nombre": "Juan",
-        "apellido1": "Álvarez",
-        "apellido2": "García",
-        "telefonoMovilPrincipal": "6",
-        "emailPrincipal": "juan_alvarez_9@email.com",
-        "poblacion": "Madrid",
-        "provincia": "Comunidad de Madrid",
-        "codigoPostal": "28001",
+        "idCliente": "",
+        "nombre": "",
+        "apellido1": "",
+        "apellido2": "",
+        "telefonoMovilPrincipal": "",
+        "emailPrincipal": "",
+        "poblacion": "",
+        "provincia": "",
+        "codigoPostal": "",
         "kafkaTopic": "es-verti.gcp.neurona.fct.cliente.contacto"
     },
     9: {
         "kafkaTopic": "es-verti.gcp.neurona.fct.poliza.situacion",
-        "idCliente": "1",
-        "idPoliza": 1,
-        "numeroPoliza": 2,
-        "producto": "3",
-        "riesgo": "4",
-        "tipoSituacion": "ANUL"
+        "idCliente": "",
+        "idPoliza": "",
+        "numeroPoliza": "",
+        "producto": "",
+        "riesgo": "",
+        "tipoSituacion": ""
     }
 };
 
@@ -95,7 +96,8 @@ const fieldOrder = {
 
 const fieldOptions = {
     'estado': ['ABIE', 'CERR'],
-    'estadoReciboCliente': ['PIMP', 'COBR']
+    'estadoReciboCliente': ['PIMP', 'COBR'],
+    'tipoSituacion': ['ANUL']
 };
 
 function selectGroup(groupName) {
@@ -148,8 +150,20 @@ function selectGroup(groupName) {
 
             const input = document.createElement('input');
             input.type = 'text';
-            input.value = '1';
             input.id = `clientId_${v.id}`;
+
+            // Load state
+            if (formState[groupName] && formState[groupName][input.id]) {
+                input.value = formState[groupName][input.id];
+            } else {
+                input.value = '';
+            }
+
+            // Save state
+            input.addEventListener('input', (e) => {
+                if (!formState[groupName]) formState[groupName] = {};
+                formState[groupName][input.id] = e.target.value;
+            });
 
             const btn = document.createElement('button');
             btn.textContent = `Send ${v.label}`;
@@ -253,7 +267,7 @@ function selectEvent(variation, title) {
     }
 }
 
-function createField(key, value, isFullWidth = false) {
+function createField(key, defaultValue, isFullWidth = false) {
     const div = document.createElement('div');
     div.className = 'form-group';
     if (isFullWidth) div.classList.add('full-width');
@@ -261,6 +275,12 @@ function createField(key, value, isFullWidth = false) {
     const label = document.createElement('label');
     label.textContent = key;
     label.htmlFor = key;
+
+    // Determine value from state or default
+    let value = defaultValue;
+    if (formState[currentVariation] && formState[currentVariation][key] !== undefined) {
+        value = formState[currentVariation][key];
+    }
 
     let input;
     if (fieldOptions[key]) {
@@ -282,6 +302,12 @@ function createField(key, value, isFullWidth = false) {
         input.name = key;
     }
 
+    // Add state listener
+    input.addEventListener('input', (e) => {
+        if (!formState[currentVariation]) formState[currentVariation] = {};
+        formState[currentVariation][key] = e.target.value;
+    });
+
     div.appendChild(label);
     div.appendChild(input);
     return div;
@@ -290,7 +316,7 @@ function createField(key, value, isFullWidth = false) {
 function renderInteractFields() {
     const dynamicFields = document.getElementById('dynamicFields');
     // Interact events just need Client ID
-    dynamicFields.appendChild(createField('clientId', '1', true));
+    dynamicFields.appendChild(createField('clientId', '', true));
 }
 
 function renderCollectionFields(variation) {
@@ -702,7 +728,10 @@ function createNewEnv() {
             { key: 'CLIENT_ID', value: '' },
             { key: 'CLIENT_SECRET', value: '' },
             { key: 'ORG_ID', value: '' },
-            { key: 'API_KEY', value: '' }
+            { key: 'API_KEY', value: '' },
+            { key: 'COLLECTION_URL', value: '' },
+            { key: 'FLOW_ID', value: '' },
+            { key: 'SANDBOX_NAME', value: '' }
         ]
     };
     environments.push(newEnv);
@@ -783,6 +812,59 @@ function saveEnvironment() {
         env.name = envName;
         saveEnvironments();
         alert('Environment saved!');
+    }
+}
+
+function toggleBulkEdit() {
+    const container = document.getElementById('bulkEditContainer');
+    const isHidden = container.style.display === 'none';
+    container.style.display = isHidden ? 'block' : 'none';
+
+    if (isHidden) {
+        // Populate textarea with current vars
+        const env = environments.find(e => e.id === activeEnvId);
+        if (env) {
+            const text = env.variables.map(v => `${v.key}:${v.value}`).join('\n');
+            document.getElementById('bulkEditText').value = text;
+        }
+    }
+}
+
+function applyBulkEdit() {
+    const text = document.getElementById('bulkEditText').value;
+    const lines = text.split('\n');
+    const newVars = [];
+
+    lines.forEach(line => {
+        if (!line.trim()) return;
+        // Split by first colon
+        const parts = line.split(':');
+        if (parts.length >= 2) {
+            const key = parts[0].trim();
+            // Join the rest back in case value contains colons
+            const value = parts.slice(1).join(':').trim();
+            // Remove {{ }} if present
+            const cleanValue = value.replace(/^{{|}}$/g, '');
+            newVars.push({ key, value: cleanValue });
+        }
+    });
+
+    const env = environments.find(e => e.id === activeEnvId);
+    if (env) {
+        // Merge with existing vars or replace? 
+        // Let's replace/update existing keys and add new ones
+        newVars.forEach(newVar => {
+            const existingIndex = env.variables.findIndex(v => v.key === newVar.key);
+            if (existingIndex >= 0) {
+                env.variables[existingIndex].value = newVar.value;
+            } else {
+                env.variables.push(newVar);
+            }
+        });
+
+        renderEnvEditor(activeEnvId);
+        toggleBulkEdit(); // Close editor
+        saveEnvironments();
     }
 }
 

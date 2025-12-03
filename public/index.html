@@ -116,7 +116,7 @@
 
             <div class="form-group">
                 <label for="profileClientId">Client ID</label>
-                <input type="text" id="profileClientId" placeholder="Enter Client ID" value="1">
+                <input type="text" id="profileClientId" placeholder="Enter Client ID" value="">
             </div>
 
             <button onclick="checkProfile()">Check Profile</button>
@@ -176,6 +176,17 @@
                             <!-- Variable rows will be added here -->
                         </div>
                         <button class="secondary-btn small-btn" onclick="addEnvVarRow()">+ Add Variable</button>
+                        <button class="secondary-btn small-btn" onclick="toggleBulkEdit()">Bulk Edit</button>
+
+                        <div id="bulkEditContainer" style="display: none; margin-top: 1rem;">
+                            <textarea id="bulkEditText" rows="10"
+                                placeholder="Paste configuration here (Key:Value or Header:Value)..."
+                                style="width: 100%; font-family: monospace; padding: 0.5rem; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);"></textarea>
+                            <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                                <button class="secondary-btn small-btn" onclick="applyBulkEdit()">Apply</button>
+                                <button class="danger-btn small-btn" onclick="toggleBulkEdit()">Cancel</button>
+                            </div>
+                        </div>
 
                         <div class="modal-footer" style="margin-top: 1.5rem;">
                             <button class="danger-btn" onclick="deleteCurrentEnv()">Delete</button>
