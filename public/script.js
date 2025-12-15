@@ -547,17 +547,42 @@ function handleFileUpload(input) {
     const file = input.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet);
+    const fileName = file.name.toLowerCase();
 
-        processPreview(json);
-    };
-    reader.readAsArrayBuffer(file);
+    if (fileName.endsWith('.csv')) {
+        // Parse CSV file with comma delimiter
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/).filter(line => line.trim());
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            const json = [];
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+                json.push(row);
+            }
+            processPreview(json);
+        };
+        reader.readAsText(file);
+    } else {
+        // Parse Excel file
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet);
+
+            processPreview(json);
+        };
+        reader.readAsArrayBuffer(file);
+    }
 }
 
 function processPreview(json) {
@@ -568,23 +593,25 @@ function processPreview(json) {
     json.forEach((row, index) => {
         const tr = document.createElement('tr');
 
-        // Determine type based on importeTotal
-        // If undefined or empty string -> Siniestro
-        // If number -> Recibo
-        let type = 'Unknown';
-        if (row.importeTotal === 'undefined' || row.importeTotal === undefined || row.importeTotal === '') {
-            type = 'Siniestro';
-        } else if (!isNaN(parseFloat(row.importeTotal))) {
-            type = 'Recibo';
+        // Determine type label from eventType
+        let typeLabel = 'Unknown';
+        if (row.eventType) {
+            if (row.eventType.includes('siniestro')) {
+                typeLabel = 'Siniestro';
+            } else if (row.eventType.includes('poliza')) {
+                typeLabel = 'Poliza';
+            } else if (row.eventType.includes('recibo')) {
+                typeLabel = 'Recibo';
+            }
         }
 
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td>${type}</td>
-            <td>${row['DNI/NIE'] || ''}</td>
-            <td>${row.idCliente || ''}</td>
-            <td>${row.importeTotal || '-'}</td>
-            <td>${row.estado || ''}</td>
+            <td>${typeLabel}</td>
+            <td>${row.clientId || ''}</td>
+            <td>${row.policyNumber || ''}</td>
+            <td>${row.state || ''}</td>
+            <td>${row.claimId || row.invoiceNumber || '-'}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -594,82 +621,59 @@ function processPreview(json) {
 
 async function processBatch() {
     const logDiv = document.getElementById('batch-log');
-    logDiv.innerHTML = 'Starting batch process...<br>';
+    logDiv.innerHTML = 'Starting smart batch process...<br>';
+
+    // Get active environment variables
+    const env = environments.find(e => e.id === activeEnvId);
+    const envVars = env ? env.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) : {};
+
+    let sentCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
 
     for (let i = 0; i < batchData.length; i++) {
         const row = batchData[i];
-        let payload = {};
-        let kafkaTopic = '';
-
-        // Logic to determine Siniestro vs Recibo
-        if (row.importeTotal === 'undefined' || row.importeTotal === undefined || row.importeTotal === '') {
-            // Siniestro
-            kafkaTopic = 'es-verti.gcp.neurona.fct.siniestro.situacion';
-            payload = {
-                kafkaTopic: kafkaTopic,
-                idSiniestro: row.idObjeto, // Mapping idObjeto to idSiniestro
-                numeroSiniestro: row.numeroObjeto, // Mapping numeroObjeto to numeroSiniestro
-                estado: row.estado,
-                producto: "AU01", // Default or from Excel?
-                idPoliza: 107989, // Default?
-                numeroPoliza: row.numeroPoliza,
-                riesgo: "BATCH UPLOAD",
-                fechaDeclaracion: new Date().toLocaleDateString('es-ES'),
-                fechaOcurrencia: new Date().toLocaleDateString('es-ES'),
-                horaOcurrencia: new Date().toLocaleString('es-ES'),
-                modoDeclaracion: "Reclamación CICOS",
-                fechaAuditoria: new Date().toLocaleDateString('es-ES'),
-                tipoSiniestro: "MSPC",
-                motivoSituacion: "APCI",
-                idCliente: row.idCliente
-            };
-        } else {
-            // Recibo
-            kafkaTopic = 'es-verti.gcp.neurona.fct.recibo-total.situacion';
-            payload = {
-                kafkaTopic: kafkaTopic,
-                anioRecibo: new Date().getFullYear().toString(),
-                numeroRecibo: row.numeroObjeto, // Mapping numeroObjeto to numeroRecibo?
-                tipoRecibo: "R",
-                fechaEfecto: new Date().toLocaleDateString('es-ES'),
-                fechaVencimiento: new Date().toLocaleDateString('es-ES'),
-                fechaEmisionPoliza: new Date().toLocaleDateString('es-ES'),
-                fechaAlta: new Date().toLocaleDateString('es-ES'),
-                idPoliza: 3363290, // Default?
-                numeroPoliza: row.numeroPoliza,
-                importeTotal: parseFloat(row.importeTotal),
-                importeNeto: parseFloat(row.importeTotal) * 0.9, // Estimate
-                nombreMediador: "VERTI TELEFONO",
-                numeroSitutacionRecibo: 9,
-                idCliente: row.idCliente,
-                medioPago: "OTRO",
-                fechaEnvioCobro: new Date().toLocaleDateString('es-ES'),
-                estadoReciboCliente: row.estado || "PIMP"
-            };
-        }
 
         try {
-            logDiv.innerHTML += `Sending row ${i + 1}... `;
+            logDiv.innerHTML += `Row ${i + 1} (${row.eventType}): `;
 
-            const res = await fetch('/api/send', {
+            const res = await fetch('/api/batch/process-row', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload) // Send flat payload
+                body: JSON.stringify({
+                    clientId: row.clientId,
+                    eventType: row.eventType,
+                    policyNumber: row.policyNumber,
+                    state: row.state,
+                    claimId: row.claimId,
+                    totalAmount: row.totalAmount,
+                    invoiceNumber: row.invoiceNumber,
+                    envVars: envVars
+                })
             });
 
+            const result = await res.json();
+
             if (res.ok) {
-                logDiv.innerHTML += `<span class="success">OK</span><br>`;
+                if (result.sent) {
+                    logDiv.innerHTML += `<span class="success">SENT</span> - ${result.reason}<br>`;
+                    sentCount++;
+                } else {
+                    logDiv.innerHTML += `<span style="color: #ff9500;">SKIPPED</span> - ${result.reason}<br>`;
+                    skippedCount++;
+                }
             } else {
-                const err = await res.json();
-                logDiv.innerHTML += `<span class="error">Failed: ${err.error}</span><br>`;
+                logDiv.innerHTML += `<span class="error">ERROR: ${result.error}</span><br>`;
+                errorCount++;
             }
 
         } catch (e) {
             logDiv.innerHTML += `<span class="error">Error: ${e.message}</span><br>`;
+            errorCount++;
         }
     }
 
-    logDiv.innerHTML += 'Batch process completed.';
+    logDiv.innerHTML += `<br><strong>Batch complete:</strong> ${sentCount} sent, ${skippedCount} skipped, ${errorCount} errors.`;
 }
 
 // --- Environment Management ---

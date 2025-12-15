@@ -346,7 +346,7 @@ app.post('/api/profile', async (req, res) => {
                         "start": 1
                     }
                 },
-                "query": "query profileExperienceEvent($page: PageInput!, $params: ProfileExperienceEventInput!) {\\n  profileExperienceEvent(page: $page, params: $params) {\\n    children\\n    _links\\n    __typename\\n  }\\n}\\n"
+                "query": "query profileExperienceEvent($page: PageInput!, $params: ProfileExperienceEventInput!) {\n  profileExperienceEvent(page: $page, params: $params) {\n    children\n    _links\n    __typename\n  }\n}\n"
             };
 
             const graphqlHeaders = {
@@ -404,6 +404,324 @@ app.post('/api/profile', async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching profile:', error.response ? error.response.data : error.message);
+        res.status(500).json({
+            error: error.message,
+            details: error.details || (error.response ? error.response.data : null)
+        });
+    }
+});
+
+
+// Batch Process Row endpoint - Smart event sending with duplicate detection
+app.post('/api/batch/process-row', async (req, res) => {
+    try {
+        const { clientId, eventType, policyNumber, state, claimId, totalAmount, invoiceNumber, envVars } = req.body;
+
+        if (!clientId) {
+            return res.status(400).json({ error: 'clientId is required' });
+        }
+
+        // Use overrides or defaults
+        const currentApiKey = envVars?.API_KEY || API_KEY;
+        const currentOrgId = envVars?.ORG_ID || ORG_ID;
+        const currentSandboxName = envVars?.SANDBOX_NAME || SANDBOX_NAME;
+        const currentCollectionUrl = envVars?.COLLECTION_URL || COLLECTION_URL;
+        const currentFlowId = envVars?.FLOW_ID || FLOW_ID;
+
+        const token = await getValidToken(envVars);
+
+        // Helper function to fetch profile and events
+        async function fetchProfileData() {
+            try {
+                const profileUrl = `https://platform.adobe.io/data/core/ups/access/entities?schema.name=_xdm.context.profile&entityIdNS=clientId&entityId=${clientId}`;
+
+                const headers = {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'x-api-key': currentApiKey,
+                    'x-gw-ims-org-id': currentOrgId,
+                    'x-sandbox-name': currentSandboxName
+                };
+
+                const response = await axios.get(profileUrl, { headers });
+                const entityKey = Object.keys(response.data)[0];
+                const entityData = response.data[entityKey];
+                const entity = entityData?.entity;
+
+                if (!entity) {
+                    return { entity: null, events: [], entityKey: null };
+                }
+
+                // Fetch events
+                let events = [];
+                try {
+                    const mergePolicyId = entityData.mergePolicy?.id || "7c358d99-437a-4df1-b3e3-6e67bf3548e7";
+                    const graphqlUrl = 'https://platform.adobe.io/data/xql/graphql';
+                    const graphqlBody = {
+                        "operationName": "profileExperienceEvent",
+                        "variables": {
+                            "params": {
+                                "mergePolicyId": mergePolicyId,
+                                "profileId": entityKey,
+                                "schemaName": "_xdm.context.experienceevent",
+                                "relatedSchemaName": "_xdm.context.profile"
+                            },
+                            "page": {
+                                "limit": 100,
+                                "start": 1
+                            }
+                        },
+                        "query": "query profileExperienceEvent($page: PageInput!, $params: ProfileExperienceEventInput!) {\n  profileExperienceEvent(page: $page, params: $params) {\n    children\n    _links\n    __typename\n  }\n}\n"
+                    };
+
+                    const graphqlHeaders = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                        'x-api-key': 'acp_ui_platform',
+                        'x-gw-ims-org-id': currentOrgId,
+                        'x-sandbox-name': currentSandboxName,
+                        'Origin': 'https://experience.adobe.com',
+                        'Referer': 'https://experience.adobe.com/'
+                    };
+
+                    const eventsResponse = await axios.post(graphqlUrl, graphqlBody, { headers: graphqlHeaders });
+                    if (eventsResponse.data.data?.profileExperienceEvent?.children) {
+                        events = eventsResponse.data.data.profileExperienceEvent.children;
+                    }
+                } catch (eventError) {
+                    console.error('Error fetching events:', eventError.message);
+                }
+
+                return { entity, events, entityKey };
+            } catch (profileError) {
+                console.error('Error fetching profile:', profileError.message);
+                return { entity: null, events: [], entityKey: null };
+            }
+        }
+
+        // Helper function to send the event via collection API
+        async function sendEvent(payload) {
+            console.log('Sending batch event payload:', JSON.stringify(payload, null, 2));
+            const response = await axios.post(currentCollectionUrl, payload, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'x-gw-ims-org-id': currentOrgId,
+                    'x-api-key': currentApiKey,
+                    'x-sandbox-name': currentSandboxName,
+                    'x-adobe-flow-id': currentFlowId,
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            return response.data;
+        }
+
+        let shouldSend = false;
+        let reason = '';
+        let adobeResponse = null;
+        let payload = null;
+
+        // Process based on event type
+        if (eventType === 'kafka.siniestro.situacion') {
+            // Build siniestro payload - only essential fields from CSV
+            payload = {
+                kafkaTopic: 'es-verti.gcp.neurona.fct.siniestro.situacion',
+                idSiniestro: claimId,
+                numeroPoliza: policyNumber,
+                estado: state,
+                idCliente: Number(clientId)
+            };
+
+            if (state === 'CERR') {
+                // Always send CERR events
+                shouldSend = true;
+                reason = 'CERR state - always send';
+            } else if (state === 'ABIE') {
+                // Check profile for existing siniestro
+                const { entity, events } = await fetchProfileData();
+
+                if (!entity) {
+                    shouldSend = true;
+                    reason = 'Profile not found - sending event';
+                } else {
+                    // Check customPersonalization for existing siniestro with same claimId
+                    let hasExistingSiniestro = false;
+                    if (entity._mapfretechsa?.journeyOptimizer?.customPersonalization) {
+                        try {
+                            const customData = JSON.parse(entity._mapfretechsa.journeyOptimizer.customPersonalization);
+                            if (Array.isArray(customData)) {
+                                hasExistingSiniestro = customData.some(item =>
+                                    item.type === 'siniestro' && String(item.id) === String(claimId)
+                                );
+                            }
+                        } catch (e) {
+                            console.error('Error parsing customPersonalization:', e.message);
+                        }
+                    }
+
+                    if (hasExistingSiniestro) {
+                        shouldSend = false;
+                        reason = `Siniestro ${claimId} already exists in profile`;
+                    } else {
+                        // Check event history for existing ABIE event with same claimId
+                        const hasAbieEvent = events.some(event => {
+                            const claimData = event.entity?._mapfretechsa?.claim;
+                            return claimData &&
+                                String(claimData.id) === String(claimId) &&
+                                claimData.state === 'ABIE';
+                        });
+
+                        if (hasAbieEvent) {
+                            shouldSend = false;
+                            reason = `Found existing ABIE event for siniestro ${claimId} in history`;
+                        } else {
+                            // Also check for CERR event with same claimId
+                            const hasCerrEvent = events.some(event => {
+                                const claimData = event.entity?._mapfretechsa?.claim;
+                                return claimData &&
+                                    String(claimData.id) === String(claimId) &&
+                                    claimData.state === 'CERR';
+                            });
+
+                            if (hasCerrEvent) {
+                                shouldSend = false;
+                                reason = `Found CERR event for siniestro ${claimId} in history`;
+                            } else {
+                                shouldSend = true;
+                                reason = 'Siniestro not in profile and no CERR/ABIE in history';
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (eventType === 'kafka.poliza.situacion') {
+            // Build poliza payload - only essential fields from CSV
+            payload = {
+                kafkaTopic: 'es-verti.gcp.neurona.fct.poliza.situacion',
+                idCliente: Number(clientId),
+                numeroPoliza: policyNumber,
+                tipoSituacion: state
+            };
+
+            if (state === 'ANUL') {
+                // Always send ANUL events
+                shouldSend = true;
+                reason = 'ANUL state - always send';
+            } else if (state === 'ALTA') {
+                // Check event history only
+                const { events, entity } = await fetchProfileData();
+
+                if (!entity) {
+                    shouldSend = true;
+                    reason = 'Profile not found - sending event';
+                } else {
+                    // Check for existing ALTA event with same policyNumber
+                    const hasAltaEvent = events.some(event => {
+                        const policyData = event.entity?._mapfretechsa?.policy;
+                        return policyData &&
+                            String(policyData.number) === String(policyNumber) &&
+                            policyData.situationType === 'ALTA';
+                    });
+
+                    if (hasAltaEvent) {
+                        shouldSend = false;
+                        reason = `Found ALTA event for policy ${policyNumber} in history`;
+                    } else {
+                        shouldSend = true;
+                        reason = 'No ALTA event found for this policy';
+                    }
+                }
+            }
+        } else if (eventType === 'kafka.recibo-total.situacion') {
+            // Build recibo payload - only essential fields from CSV
+            payload = {
+                kafkaTopic: 'es-verti.gcp.neurona.fct.recibo-total.situacion',
+                numeroRecibo: invoiceNumber,
+                numeroPoliza: policyNumber,
+                importeTotal: parseFloat(totalAmount) || 0,
+                idCliente: Number(clientId),
+                estadoReciboCliente: state
+            };
+
+            if (state === 'COBR') {
+                // Always send COBR events
+                shouldSend = true;
+                reason = 'COBR state - always send';
+            } else if (state === 'PIMP') {
+                // Check profile for existing recibo
+                const { entity, events } = await fetchProfileData();
+
+                if (!entity) {
+                    shouldSend = true;
+                    reason = 'Profile not found - sending event';
+                } else {
+                    // Check customPersonalization for existing recibo with same invoiceNumber
+                    let hasExistingRecibo = false;
+                    if (entity._mapfretechsa?.journeyOptimizer?.customPersonalization) {
+                        try {
+                            const customData = JSON.parse(entity._mapfretechsa.journeyOptimizer.customPersonalization);
+                            if (Array.isArray(customData)) {
+                                hasExistingRecibo = customData.some(item =>
+                                    item.type === 'recibo' && String(item.id) === String(invoiceNumber)
+                                );
+                            }
+                        } catch (e) {
+                            console.error('Error parsing customPersonalization:', e.message);
+                        }
+                    }
+
+                    if (hasExistingRecibo) {
+                        shouldSend = false;
+                        reason = `Recibo ${invoiceNumber} already exists in profile`;
+                    } else {
+                        // Check event history for existing PIMP event with same invoiceNumber
+                        const hasPimpEvent = events.some(event => {
+                            const invoiceData = event.entity?._mapfretechsa?.invoice;
+                            return invoiceData &&
+                                String(invoiceData.number) === String(invoiceNumber) &&
+                                invoiceData.state === 'PIMP';
+                        });
+
+                        if (hasPimpEvent) {
+                            shouldSend = false;
+                            reason = `Found existing PIMP event for recibo ${invoiceNumber} in history`;
+                        } else {
+                            // Also check for COBR event with same invoiceNumber
+                            const hasCobrEvent = events.some(event => {
+                                const invoiceData = event.entity?._mapfretechsa?.invoice;
+                                return invoiceData &&
+                                    String(invoiceData.number) === String(invoiceNumber) &&
+                                    invoiceData.state === 'COBR';
+                            });
+
+                            if (hasCobrEvent) {
+                                shouldSend = false;
+                                reason = `Found COBR event for recibo ${invoiceNumber} in history`;
+                            } else {
+                                shouldSend = true;
+                                reason = 'Recibo not in profile and no COBR/PIMP in history';
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            return res.status(400).json({ error: `Unknown event type: ${eventType}` });
+        }
+
+        // Send the event if needed
+        if (shouldSend && payload) {
+            adobeResponse = await sendEvent(payload);
+        }
+
+        res.json({
+            sent: shouldSend,
+            reason: reason,
+            adobeResponse: adobeResponse
+        });
+
+    } catch (error) {
+        console.error('Error processing batch row:', error.response ? error.response.data : error.message);
         res.status(500).json({
             error: error.message,
             details: error.details || (error.response ? error.response.data : null)

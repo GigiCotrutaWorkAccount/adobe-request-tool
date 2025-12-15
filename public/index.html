@@ -65,23 +65,23 @@
         </div>
 
         <div id="batch-container" class="form-container" style="display: none;">
-            <h2>Batch Excel Upload</h2>
+            <h2>Smart Batch Upload</h2>
 
             <div class="instructions">
                 <h3>Instructions</h3>
-                <p>Upload an Excel file with the following columns:</p>
-                <code>DNI/NIE;idCliente;estado;importeTotal;idObjeto;numeroPoliza;numeroObjeto</code>
+                <p>Upload a CSV file with the following columns:</p>
+                <code>clientId,eventType,policyNumber,state,claimId,totalAmount,invoiceNumber</code>
                 <ul>
-                    <li><strong>Siniestro:</strong> If <code>importeTotal</code> is "undefined", it's treated as a
-                        Siniestro event.</li>
-                    <li><strong>Recibo:</strong> If <code>importeTotal</code> is a number, it's treated as a Recibo
-                        event (idObjeto is ignored/0).</li>
+                    <li><strong>Siniestro:</strong> Uses <code>claimId</code> - skips if already in profile or CERR
+                        exists</li>
+                    <li><strong>Poliza:</strong> Uses <code>policyNumber</code> - skips ALTA if already exists</li>
+                    <li><strong>Recibo:</strong> Uses <code>invoiceNumber</code> - skips if already in profile or COBR
+                        exists</li>
                 </ul>
-                <button onclick="downloadTemplate()">Download Template</button>
             </div>
 
             <div class="upload-section">
-                <input type="file" id="excelFile" accept=".xlsx, .xls" onchange="handleFileUpload(this)">
+                <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(this)">
             </div>
 
             <div id="preview-section" style="display: none;">
@@ -92,10 +92,10 @@
                             <tr>
                                 <th>Row</th>
                                 <th>Type</th>
-                                <th>DNI/NIE</th>
-                                <th>idCliente</th>
-                                <th>Importe</th>
-                                <th>Status</th>
+                                <th>Client ID</th>
+                                <th>Policy #</th>
+                                <th>State</th>
+                                <th>Claim/Invoice</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -104,7 +104,7 @@
 
                 <div class="confirmation">
                     <p>Does the preview look correct?</p>
-                    <button onclick="processBatch()">Yes, Send Batch Events</button>
+                    <button onclick="processBatch()">Yes, Process Smart Batch</button>
                 </div>
             </div>
 
