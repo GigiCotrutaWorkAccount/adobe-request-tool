@@ -396,6 +396,7 @@ app.post('/api/profile', async (req, res) => {
             middleName: entity.person?.name?.middleName || null,
             clientId: entity.identityMap?.clientid?.[0]?.id || null,
             customPersonalization: entity._mapfretechsa?.journeyOptimizer?.customPersonalization || null,
+            activePolicies: entity._mapfretechsa?.journeyOptimizer?.activePolicies || null,
             events: events,
             debug: eventsDebug
         };

@@ -415,6 +415,35 @@ async function checkProfile() {
                 }
             }
 
+            // Handle activePolicies similar to customPersonalization
+            let activePoliciesHtml = 'N/A';
+            if (data.activePolicies) {
+                try {
+                    const parsed = JSON.parse(data.activePolicies);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        activePoliciesHtml = '<div style="display: grid; gap: 0.5rem;">';
+                        parsed.forEach((item, index) => {
+                            activePoliciesHtml += `<div style="background: var(--card-bg); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--input-border);">
+                                <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 11px; color: var(--label-color); text-transform: uppercase;">Policy ${index + 1}</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem;">`;
+                            for (const [key, value] of Object.entries(item)) {
+                                activePoliciesHtml += `<div style="overflow: hidden; text-overflow: ellipsis;">
+                                    <div style="font-weight: 500; font-size: 11px; color: var(--label-color); margin-bottom: 2px;">${key}</div>
+                                    <div style="font-size: 13px; color: var(--text-color);">${value}</div>
+                                </div>`;
+                            }
+                            activePoliciesHtml += '</div></div>';
+                        });
+                        activePoliciesHtml += '</div>';
+                    } else {
+                        activePoliciesHtml = `<pre style="background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: 4px; overflow-x: auto; margin-top: 0.25rem;">${data.activePolicies}</pre>`;
+                    }
+                } catch (e) {
+                    console.error("Error parsing activePolicies", e);
+                    activePoliciesHtml = `<pre style="background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: 4px; overflow-x: auto; margin-top: 0.25rem;">${data.activePolicies}</pre>`;
+                }
+            }
+
             // Display the filtered profile data
             dataDiv.innerHTML = `
                 <div style="display: grid; gap: 0.75rem;">
@@ -426,6 +455,10 @@ async function checkProfile() {
                     <div>
                         <strong style="color: var(--label-color); display: block; margin-bottom: 0.5rem;">Custom Personalization:</strong> 
                         ${customPersonalizationHtml}
+                    </div>
+                    <div>
+                        <strong style="color: var(--label-color); display: block; margin-bottom: 0.5rem;">Active Policies:</strong> 
+                        ${activePoliciesHtml}
                     </div>
                 </div>
             `;
