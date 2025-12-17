@@ -472,7 +472,7 @@ async function checkProfile() {
                     // Regex looks for "eventType": "..."
                     jsonString = jsonString.replace(/"eventType":\s*"([^"]+)"/g, '<span style="color: #d32f2f; font-weight: bold;">"eventType": "$1"</span>');
 
-                    return `<pre style="background: var(--card-bg); padding: 1rem; border-radius: 6px; border: 1px solid var(--input-border); overflow-x: auto;">${jsonString}</pre>`;
+                    return `<pre style="background: var(--card-bg); padding: 1rem; border-radius: 6px; border: 1px solid var(--input-border); overflow-x: auto; word-wrap: break-word; white-space: pre-wrap; min-width: 0;">${jsonString}</pre>`;
                 }).join('<hr style="border: 0; border-top: 1px solid var(--input-border); margin: 1rem 0;">');
 
                 eventsDiv.innerHTML = eventsHtml;

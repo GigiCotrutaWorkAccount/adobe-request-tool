@@ -121,15 +121,16 @@
 
             <button onclick="checkProfile()">Check Profile</button>
 
-            <div id="profile-response" style="display: none; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-                <div>
+            <div id="profile-response"
+                style="display: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem;">
+                <div style="min-width: 0; overflow-x: hidden;">
                     <h3 style="font-size: 16px; margin-bottom: 1rem;">Profile attributes</h3>
                     <div id="profile-data"
                         style="background: var(--response-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--response-border); max-height: 600px; overflow-y: auto;">
                     </div>
                 </div>
 
-                <div>
+                <div style="min-width: 0; overflow-x: hidden;">
                     <h3 style="font-size: 16px; margin-bottom: 1rem;">Profile Events</h3>
                     <div id="profile-events"
                         style="background: var(--response-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--response-border); max-height: 600px; overflow-y: auto;">
