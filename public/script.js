@@ -1,30 +1,31 @@
 let currentVariation = null;
 const formState = {}; // Store form values
 
-// Theme Management
+// Theme Management - Dark theme is default, toggle enables light mode
 const themeCheckbox = document.getElementById('checkbox');
 
-function toggleTheme(isDark) {
-    if (isDark) {
-        document.body.classList.add('dark-mode');
-        localStorage.setItem('theme', 'dark');
-    } else {
-        document.body.classList.remove('dark-mode');
+function toggleTheme(isLight) {
+    if (isLight) {
+        document.body.classList.add('light-mode');
         localStorage.setItem('theme', 'light');
+    } else {
+        document.body.classList.remove('light-mode');
+        localStorage.setItem('theme', 'dark');
     }
 }
 
-function setTheme(isDark) {
-    themeCheckbox.checked = isDark;
-    toggleTheme(isDark);
+function setTheme(isLight) {
+    themeCheckbox.checked = isLight;
+    toggleTheme(isLight);
 }
 
-// Load saved theme
+// Load saved theme (dark is default)
 const savedTheme = localStorage.getItem('theme');
-if (savedTheme === 'dark') {
-    document.body.classList.add('dark-mode');
+if (savedTheme === 'light') {
+    document.body.classList.add('light-mode');
     if (themeCheckbox) themeCheckbox.checked = true;
 }
+
 
 const defaults = {
     5: {
@@ -129,28 +130,28 @@ function selectGroup(groupName) {
 
         variations.forEach(v => {
             const card = document.createElement('div');
-            card.className = 'event-card full-width'; // Use full-width to span grid
-            card.style.border = '1px solid #d2d2d7';
-            card.style.padding = '1.5rem';
-            card.style.marginBottom = '1rem';
-            card.style.borderRadius = '8px';
-            card.style.backgroundColor = '#fbfbfd';
+            card.className = 'event-card full-width';
 
             const title = document.createElement('h3');
             title.textContent = v.label;
-            title.style.marginTop = '0';
-            title.style.fontSize = '16px';
-            title.style.marginBottom = '1rem';
+
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'event-card-actions';
 
             const formGroup = document.createElement('div');
             formGroup.className = 'form-group';
+            formGroup.style.marginBottom = '0';
+            formGroup.style.width = '100%';
 
             const label = document.createElement('label');
             label.textContent = 'Client ID';
+            label.style.display = 'none';
 
             const input = document.createElement('input');
             input.type = 'text';
             input.id = `clientId_${v.id}`;
+            input.placeholder = 'Enter Client ID';
 
             // Load state
             if (formState[groupName] && formState[groupName][input.id]) {
@@ -167,14 +168,18 @@ function selectGroup(groupName) {
 
             const btn = document.createElement('button');
             btn.textContent = `Send ${v.label}`;
+            btn.style.marginTop = '0';
+            btn.style.width = '100%';
             btn.onclick = () => sendInAppRequest(v.id, input.id, btn);
 
             formGroup.appendChild(label);
             formGroup.appendChild(input);
 
+            actionsDiv.appendChild(formGroup);
+            actionsDiv.appendChild(btn);
+
             card.appendChild(title);
-            card.appendChild(formGroup);
-            card.appendChild(btn);
+            card.appendChild(actionsDiv);
 
             dynamicFields.appendChild(card);
         });
@@ -342,7 +347,7 @@ function renderCollectionFields(variation) {
 function showProfileCheck() {
     document.getElementById('formContainer').style.display = 'none';
     document.getElementById('batch-container').style.display = 'none';
-    document.getElementById('profile-container').style.display = 'block';
+    document.getElementById('profile-container').style.display = 'flex';
 
     // Highlight sidebar item
     document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
@@ -378,106 +383,121 @@ async function checkProfile() {
         const data = await res.json();
 
         if (res.ok) {
-            let customPersonalizationHtml = 'N/A';
-            if (data.customPersonalization) {
-                try {
-                    const parsed = JSON.parse(data.customPersonalization);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        customPersonalizationHtml = '<div style="display: grid; gap: 0.5rem;">';
-                        parsed.forEach((item, index) => {
-                            customPersonalizationHtml += `<div style="background: var(--card-bg); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--input-border);">
-                                <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 11px; color: var(--label-color); text-transform: uppercase;">Objeto ${index + 1}</div>
-                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem;">`;
-                            for (const [key, value] of Object.entries(item)) {
-                                customPersonalizationHtml += `<div style="overflow: hidden; text-overflow: ellipsis;">
-                                    <div style="font-weight: 500; font-size: 11px; color: var(--label-color); margin-bottom: 2px;">${key}</div>
-                                    <div style="font-size: 13px; color: var(--text-color);">${value}</div>
-                                </div>`;
-                            }
-                            customPersonalizationHtml += '</div></div>';
-                        });
-                        customPersonalizationHtml += '</div>';
-                    } else if (typeof parsed === 'object' && parsed !== null) {
-                        customPersonalizationHtml = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem;">';
-                        for (const [key, value] of Object.entries(parsed)) {
-                            customPersonalizationHtml += `<div style="overflow: hidden; text-overflow: ellipsis;">
-                                <div style="font-weight: 500; font-size: 11px; color: var(--label-color); margin-bottom: 2px;">${key}</div>
-                                <div style="font-size: 13px; color: var(--text-color);">${value}</div>
-                            </div>`;
-                        }
-                        customPersonalizationHtml += '</div>';
-                    } else {
-                        customPersonalizationHtml = `<pre style="background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: 4px; overflow-x: auto; margin-top: 0.25rem;">${data.customPersonalization}</pre>`;
-                    }
-                } catch (e) {
-                    console.error("Error parsing customPersonalization", e);
-                    customPersonalizationHtml = `<pre style="background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: 4px; overflow-x: auto; margin-top: 0.25rem;">${data.customPersonalization}</pre>`;
-                }
-            }
+            // Helper to render attribute rows
+            const renderAttribute = (label, value) => {
+                return `
+                <div class="attribute-row">
+                    <span class="attribute-label">${label}</span>
+                    <span class="attribute-value">${value || 'N/A'}</span>
+                </div>`;
+            };
 
-            // Handle activePolicies similar to customPersonalization
-            let activePoliciesHtml = 'N/A';
-            if (data.activePolicies) {
-                try {
-                    const parsed = JSON.parse(data.activePolicies);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        activePoliciesHtml = '<div style="display: grid; gap: 0.5rem;">';
-                        parsed.forEach((item, index) => {
-                            activePoliciesHtml += `<div style="background: var(--card-bg); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--input-border);">
-                                <div style="font-weight: 600; margin-bottom: 0.5rem; font-size: 11px; color: var(--label-color); text-transform: uppercase;">Policy ${index + 1}</div>
-                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem;">`;
-                            for (const [key, value] of Object.entries(item)) {
-                                activePoliciesHtml += `<div style="overflow: hidden; text-overflow: ellipsis;">
-                                    <div style="font-weight: 500; font-size: 11px; color: var(--label-color); margin-bottom: 2px;">${key}</div>
-                                    <div style="font-size: 13px; color: var(--text-color);">${value}</div>
-                                </div>`;
-                            }
-                            activePoliciesHtml += '</div></div>';
-                        });
-                        activePoliciesHtml += '</div>';
-                    } else {
-                        activePoliciesHtml = `<pre style="background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: 4px; overflow-x: auto; margin-top: 0.25rem;">${data.activePolicies}</pre>`;
-                    }
-                } catch (e) {
-                    console.error("Error parsing activePolicies", e);
-                    activePoliciesHtml = `<pre style="background: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: 4px; overflow-x: auto; margin-top: 0.25rem;">${data.activePolicies}</pre>`;
-                }
-            }
-
-            // Display the filtered profile data
-            dataDiv.innerHTML = `
-                <div style="display: grid; gap: 0.75rem;">
-                    <div><strong style="color: var(--label-color);">Email:</strong> ${data.email || 'N/A'}</div>
-                    <div><strong style="color: var(--label-color);">First Name:</strong> ${data.firstName || 'N/A'}</div>
-                    <div><strong style="color: var(--label-color);">Last Name:</strong> ${data.lastName || 'N/A'}</div>
-                    <div><strong style="color: var(--label-color);">Middle Name:</strong> ${data.middleName || 'N/A'}</div>
-                    <div><strong style="color: var(--label-color);">Client ID:</strong> ${data.clientId || 'N/A'}</div>
-                    <div>
-                        <strong style="color: var(--label-color); display: block; margin-bottom: 0.5rem;">Custom Personalization:</strong> 
-                        ${customPersonalizationHtml}
-                    </div>
-                    <div>
-                        <strong style="color: var(--label-color); display: block; margin-bottom: 0.5rem;">Active Policies:</strong> 
-                        ${activePoliciesHtml}
+            // 1. Basic Profile Attributes
+            let basicProfileHtml = `
+                <div class="profile-section">
+                    <div class="profile-section-title">Profile Attributes</div>
+                    <div class="attribute-list">
+                        ${renderAttribute('Client ID', data.clientId)}
+                        ${renderAttribute('First Name', data.firstName)}
+                        ${renderAttribute('Last Name', data.lastName)}
+                        ${renderAttribute('Middle Name', data.middleName)}
+                        ${renderAttribute('Email', data.email)}
                     </div>
                 </div>
             `;
 
-            // Render Events
+            // 2. Custom Personalization
+            let customPersonalizationHtml = '';
+            if (data.customPersonalization) {
+                try {
+                    const parsed = JSON.parse(data.customPersonalization);
+                    let objects = [];
+                    if (Array.isArray(parsed)) objects = parsed;
+                    else if (typeof parsed === 'object' && parsed !== null) objects = [parsed];
+
+                    if (objects.length > 0) {
+                        customPersonalizationHtml = `
+                        <div class="profile-section">
+                            <div class="profile-section-title">Custom Personalization</div>
+                            <div class="objects-list">`;
+
+                        objects.forEach((obj, index) => {
+                            customPersonalizationHtml += `<div class="object-container">
+                                <div class="object-title">Object ${index + 1}</div>
+                                <div class="attribute-list">`;
+
+                            for (const [key, value] of Object.entries(obj)) {
+                                customPersonalizationHtml += renderAttribute(key, value);
+                            }
+
+                            customPersonalizationHtml += `</div></div>`;
+                        });
+
+                        customPersonalizationHtml += `</div></div>`;
+                    }
+                } catch (e) {
+                    console.error("Error parsing customPersonalization", e);
+                }
+            }
+
+            // 3. Active Policies
+            let activePoliciesHtml = '';
+            if (data.activePolicies) {
+                try {
+                    const parsed = JSON.parse(data.activePolicies);
+                    let policies = [];
+                    if (Array.isArray(parsed)) policies = parsed;
+                    else if (typeof parsed === 'object' && parsed !== null) policies = [parsed];
+
+                    if (policies.length > 0) {
+                        activePoliciesHtml = `
+                        <div class="profile-section">
+                            <div class="profile-section-title">Active Policies</div>
+                            <div class="objects-list">`;
+
+                        policies.forEach((policy, index) => {
+                            activePoliciesHtml += `<div class="object-container">
+                                <div class="object-title">Policy ${index + 1}</div>
+                                <div class="attribute-list">`;
+
+                            for (const [key, value] of Object.entries(policy)) {
+                                activePoliciesHtml += renderAttribute(key, value);
+                            }
+
+                            activePoliciesHtml += `</div></div>`;
+                        });
+
+                        activePoliciesHtml += `</div></div>`;
+                    }
+                } catch (e) {
+                    console.error("Error parsing activePolicies", e);
+                }
+            }
+
+            // Combine Data Sections
+            dataDiv.innerHTML = basicProfileHtml + customPersonalizationHtml + activePoliciesHtml;
+
+            // 4. Render Events
             const eventsDiv = document.getElementById('profile-events');
             if (data.events && data.events.length > 0) {
-                const eventsHtml = data.events.map(event => {
+                let eventsHtml = `<div class="profile-section"><div class="profile-section-title">Profile Events</div>`;
+
+                data.events.forEach((event, index) => {
                     let jsonString = JSON.stringify(event, null, 2);
-                    // Highlight "eventType": "value"
-                    // Regex looks for "eventType": "..."
-                    jsonString = jsonString.replace(/"eventType":\s*"([^"]+)"/g, '<span style="color: #d32f2f; font-weight: bold;">"eventType": "$1"</span>');
+                    // Highlight "eventType"
+                    jsonString = jsonString.replace(/"eventType":\s*"([^"]+)"/g, '<span class="key-highlight">"eventType": "$1"</span>');
 
-                    return `<pre style="background: var(--card-bg); padding: 1rem; border-radius: 6px; border: 1px solid var(--input-border); overflow-x: auto; word-wrap: break-word; white-space: pre-wrap; min-width: 0;">${jsonString}</pre>`;
-                }).join('<hr style="border: 0; border-top: 1px solid var(--input-border); margin: 1rem 0;">');
+                    eventsHtml += `
+                    <div class="event-container">
+                        <div class="event-title">Event ${index + 1}</div>
+                        <pre class="json-display">${jsonString}</pre>
+                    </div>`;
+                });
 
+                eventsHtml += `</div>`;
                 eventsDiv.innerHTML = eventsHtml;
             } else {
-                eventsDiv.innerHTML = '<p style="color: var(--text-color); padding: 1rem;">No events found.</p>';
+                eventsDiv.innerHTML = '<div class="profile-section"><p style="color: var(--text-secondary); padding: 1rem;">No events found.</p></div>';
             }
 
             responseDiv.style.display = 'grid';
@@ -485,7 +505,6 @@ async function checkProfile() {
             dataDiv.innerHTML = `<div style="color: #ff3b30;">${data.error || 'Unknown error'}</div>`;
             responseDiv.style.display = 'grid';
         }
-
     } catch (error) {
         dataDiv.innerHTML = `<div style="color: #ff3b30;">Error: ${error.message}</div>`;
         responseDiv.style.display = 'grid';
@@ -906,12 +925,23 @@ function applyBulkEdit() {
     }
 }
 
-function deleteCurrentEnv() {
-    if (!confirm('Are you sure you want to delete this environment?')) return;
+function showDeleteConfirm() {
+    document.getElementById('deleteBtn').style.display = 'none';
+    document.getElementById('confirmDeleteBtn').style.display = 'inline-flex';
+    document.getElementById('cancelDeleteBtn').style.display = 'inline-flex';
+}
 
+function cancelDeleteEnv() {
+    document.getElementById('deleteBtn').style.display = 'inline-flex';
+    document.getElementById('confirmDeleteBtn').style.display = 'none';
+    document.getElementById('cancelDeleteBtn').style.display = 'none';
+}
+
+function confirmDeleteEnv() {
     environments = environments.filter(e => e.id !== activeEnvId);
     activeEnvId = null;
     saveEnvironments();
+    cancelDeleteEnv(); // Reset the buttons
 }
 
 // UI Handlers

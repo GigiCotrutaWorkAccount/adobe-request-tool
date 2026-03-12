@@ -4,8 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Adobe Request Tool - Send events and manage profiles for Adobe Experience Platform">
+    <meta name="theme-color" content="#0d1117">
     <title>Adobe Request Tool</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Ubuntu:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -38,12 +44,12 @@
         <div class="event-item" onclick="showProfileCheck()" data-group="profileCheck">Profile Check</div>
 
         <div class="theme-switch-wrapper">
-            <span class="theme-label" onclick="setTheme(false)">White Mode</span>
+            <span class="theme-label" onclick="setTheme(true)">☀️</span>
             <label class="theme-switch" for="checkbox">
                 <input type="checkbox" id="checkbox" onchange="toggleTheme(this.checked)">
                 <span class="slider"></span>
             </label>
-            <span class="theme-label" onclick="setTheme(true)">Dark Mode</span>
+            <span class="theme-label" onclick="setTheme(false)">🌙</span>
             <div class="settings-icon" onclick="openSettings()" title="Settings">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                     <path
@@ -114,28 +120,17 @@
         <div id="profile-container" class="form-container" style="display: none;">
             <h2>Profile Check</h2>
 
-            <div class="form-group">
-                <label for="profileClientId">Client ID</label>
-                <input type="text" id="profileClientId" placeholder="Enter Client ID" value="">
+            <div class="profile-actions">
+                <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
+                    <label for="profileClientId" style="display: none;">Client ID</label>
+                    <input type="text" id="profileClientId" placeholder="Enter Client ID" value="">
+                </div>
+                <button onclick="checkProfile()" style="white-space: nowrap; margin-top: 0;">Check Profile</button>
             </div>
 
-            <button onclick="checkProfile()">Check Profile</button>
-
-            <div id="profile-response"
-                style="display: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem;">
-                <div style="min-width: 0; overflow-x: hidden;">
-                    <h3 style="font-size: 16px; margin-bottom: 1rem;">Profile attributes</h3>
-                    <div id="profile-data"
-                        style="background: var(--response-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--response-border); max-height: 600px; overflow-y: auto;">
-                    </div>
-                </div>
-
-                <div style="min-width: 0; overflow-x: hidden;">
-                    <h3 style="font-size: 16px; margin-bottom: 1rem;">Profile Events</h3>
-                    <div id="profile-events"
-                        style="background: var(--response-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--response-border); max-height: 600px; overflow-y: auto;">
-                    </div>
-                </div>
+            <div id="profile-response" class="profile-columns" style="display: none;">
+                <div id="profile-data" class="profile-column"></div>
+                <div id="profile-events" class="profile-column"></div>
             </div>
         </div>
     </div>
@@ -188,8 +183,13 @@
                             </div>
                         </div>
 
-                        <div class="modal-footer" style="margin-top: 1.5rem;">
-                            <button class="danger-btn" onclick="deleteCurrentEnv()">Delete</button>
+                        <div class="modal-footer"
+                            style="margin-top: 1.5rem; display: flex; gap: 0.75rem; align-items: center;">
+                            <button id="deleteBtn" class="danger-btn" onclick="showDeleteConfirm()">Delete</button>
+                            <button id="confirmDeleteBtn" class="danger-btn" style="display: none;"
+                                onclick="confirmDeleteEnv()">Confirm Delete</button>
+                            <button id="cancelDeleteBtn" class="secondary-btn" style="display: none;"
+                                onclick="cancelDeleteEnv()">Cancel</button>
                             <button onclick="saveEnvironment()">Save</button>
                         </div>
                     </div>
