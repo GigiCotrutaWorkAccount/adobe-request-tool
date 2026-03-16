@@ -78,6 +78,35 @@ const defaults = {
         "codigoPostal": "",
         "kafkaTopic": "es-verti.gcp.neurona.fct.cliente.contacto"
     },
+    8: {
+        "kafkaTopic": "es-verti.gcp.neurona.fct.cotizacion.situacion",
+        "idPoliza": "",
+        "numeroPoliza": "",
+        "idCotizacion": "",
+        "producto": "",
+        "estado": "",
+        "canalOrigen": "",
+        "canalCierre": "",
+        "mediador": "",
+        "numeroCotizacion": "",
+        "tipoCotizacion": "",
+        "fechaEfecto": "",
+        "FechaVencimiento": "",
+        "modalidad": "",
+        "precio": "",
+        "periodicidadPago": "",
+        "medioPago": "",
+        "riesgo": "",
+        "numeroDocumento": "",
+        "nombre": "",
+        "apellido1": "",
+        "apellido2": "",
+        "email": "",
+        "telefono": "",
+        "combinacion": "",
+        "tipoDocumento": "",
+        "usuarioSituacion": ""
+    },
     9: {
         "kafkaTopic": "es-verti.gcp.neurona.fct.poliza.situacion",
         "idCliente": "",
@@ -92,11 +121,12 @@ const defaults = {
 const fieldOrder = {
     5: ['idCliente', 'idSiniestro', 'estado', 'numeroSiniestro', 'numeroPoliza'],
     6: ['idCliente', 'numeroRecibo', 'estadoReciboCliente', 'numeroPoliza', 'importeTotal', 'idPoliza'],
+    8: ['numeroDocumento', 'idCotizacion', 'numeroCotizacion', 'estado', 'precio'],
     9: ['idCliente', 'numeroPoliza', 'tipoSituacion']
 };
 
 const fieldOptions = {
-    'estado': ['ABIE', 'CERR'],
+    'estado': ['ABIE', 'CERR', 'ESTIMADA'],
     'estadoReciboCliente': ['PIMP', 'COBR'],
     'tipoSituacion': ['ANUL']
 };
