@@ -278,9 +278,81 @@ app.post('/api/send', async (req, res) => {
                 requestPayload: body
             });
         }
-
     } catch (error) {
         console.error('Error processing request:', error.message);
+        res.status(500).json({
+            error: error.message,
+            details: error.details || (error.response ? error.response.data : null)
+        });
+    }
+});
+
+// Batch Errors Recovery endpoint
+app.post('/api/batch-errors', async (req, res) => {
+    try {
+        const { batchId, envVars } = req.body;
+
+        if (!batchId) {
+            return res.status(400).json({ error: 'batchId is required' });
+        }
+
+        // Use overrides or defaults
+        const currentApiKey = envVars?.API_KEY || API_KEY;
+        const currentOrgId = envVars?.ORG_ID || ORG_ID;
+        const currentSandboxName = envVars?.SANDBOX_NAME || SANDBOX_NAME;
+        
+        // Determine the environment based on sandbox name
+        let platformHost = 'platform-nld2.adobe.io';
+        
+        const token = await getValidToken(envVars);
+
+        const listUrl = `https://${platformHost}/data/foundation/export/batches/${batchId}/failed`;
+
+        const headers = {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'x-api-key': currentApiKey,
+            'x-gw-ims-org-id': currentOrgId,
+            'x-sandbox-name': currentSandboxName
+        };
+
+        // 1. Fetch the list of failed files
+        const listResponse = await axios.get(listUrl, { headers });
+        const data = listResponse.data.data;
+
+        if (!data || data.length === 0) {
+            return res.json({ bodies: [] });
+        }
+
+        let allBodies = [];
+
+        // 2. Fetch each failed NDJSON file
+        for (const file of data) {
+            const fileHref = file._links.self.href;
+            try {
+                const fileResponse = await axios.get(fileHref, { headers, responseType: 'text' });
+                
+                // 3. Parse NDJSON and extract bodies
+                const lines = fileResponse.data.split(/\r?\n/).filter(line => line.trim());
+                for (const line of lines) {
+                    try {
+                        const parsed = JSON.parse(line);
+                        if (parsed && parsed.body) {
+                            allBodies.push(parsed.body);
+                        }
+                    } catch (e) {
+                         console.error('Failed to parse line:', e.message);
+                    }
+                }
+            } catch (fileError) {
+                console.error(`Error fetching file ${fileHref}:`, fileError.message);
+            }
+        }
+
+        res.json({ bodies: allBodies });
+
+    } catch (error) {
+        console.error('Error fetching batch errors:', error.response ? error.response.data : error.message);
         res.status(500).json({
             error: error.message,
             details: error.details || (error.response ? error.response.data : null)

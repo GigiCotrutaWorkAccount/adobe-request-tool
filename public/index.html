@@ -42,6 +42,7 @@
         <div class="event-group-label">Tools</div>
         <div class="event-item" onclick="showBatchUpload()" data-group="batchUpload">Batch Upload</div>
         <div class="event-item" onclick="showProfileCheck()" data-group="profileCheck">Profile Check</div>
+        <div class="event-item" onclick="showBatchErrors()" data-group="batchErrors">Batch Errors</div>
 
         <div class="theme-switch-wrapper">
             <span class="theme-label" onclick="setTheme(true)">☀️</span>
@@ -131,6 +132,30 @@
             <div id="profile-response" class="profile-columns" style="display: none;">
                 <div id="profile-data" class="profile-column"></div>
                 <div id="profile-events" class="profile-column"></div>
+            </div>
+        </div>
+        
+        <div id="batch-errors-container" class="form-container" style="display: none;">
+            <h2>Batch Errors Recovery</h2>
+
+            <div class="instructions">
+                <p>Enter a batch ID to retrieve all failed events.</p>
+            </div>
+
+            <div class="profile-actions">
+                <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
+                    <label for="recoveryBatchId" style="display: none;">Batch ID</label>
+                    <input type="text" id="recoveryBatchId" placeholder="Enter Batch ID (e.g. 01KKKCJZV69WWXMW65EPE57WMT)" value="">
+                </div>
+                <button onclick="fetchBatchErrors()" style="white-space: nowrap; margin-top: 0;" id="fetchErrorsBtn">Fetch Errors</button>
+            </div>
+
+            <div id="batch-errors-response" style="display: none; margin-top: 1.5rem;">
+                <div class="profile-actions" style="justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <h3 style="margin: 0;" id="batch-errors-count">Extracted Payloads: 0</h3>
+                    <button onclick="copyBatchErrors()" class="secondary-btn small-btn" id="copyErrorsBtn">Copy JSON</button>
+                </div>
+                <pre class="json-display" id="batch-errors-output" style="max-height: 500px; overflow-y: auto;"></pre>
             </div>
         </div>
     </div>

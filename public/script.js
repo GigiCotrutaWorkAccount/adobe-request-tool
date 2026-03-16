@@ -114,6 +114,7 @@ function selectGroup(groupName) {
 
     document.getElementById('batch-container').style.display = 'none';
     document.getElementById('profile-container').style.display = 'none';
+    document.getElementById('batch-errors-container').style.display = 'none';
     container.style.display = 'block';
     titleEl.textContent = groupName;
     dynamicFields.innerHTML = '';
@@ -244,6 +245,7 @@ async function sendInAppRequest(variation, inputId, btnElement) {
 function selectEvent(variation, title) {
     document.getElementById('batch-container').style.display = 'none';
     document.getElementById('profile-container').style.display = 'none';
+    document.getElementById('batch-errors-container').style.display = 'none';
     currentVariation = variation;
 
     // Update active state if not coming from group selection (internal call)
@@ -347,6 +349,7 @@ function renderCollectionFields(variation) {
 function showProfileCheck() {
     document.getElementById('formContainer').style.display = 'none';
     document.getElementById('batch-container').style.display = 'none';
+    document.getElementById('batch-errors-container').style.display = 'none';
     document.getElementById('profile-container').style.display = 'flex';
 
     // Highlight sidebar item
@@ -575,6 +578,7 @@ async function sendRequest() {
 function showBatchUpload() {
     document.getElementById('formContainer').style.display = 'none';
     document.getElementById('profile-container').style.display = 'none';
+    document.getElementById('batch-errors-container').style.display = 'none';
     document.getElementById('batch-container').style.display = 'block';
 
     // Highlight sidebar item
@@ -726,6 +730,84 @@ async function processBatch() {
     }
 
     logDiv.innerHTML += `<br><strong>Batch complete:</strong> ${sentCount} sent, ${skippedCount} skipped, ${errorCount} errors.`;
+}
+
+// --- Batch Errors Recovery Logic ---
+function showBatchErrors() {
+    document.getElementById('formContainer').style.display = 'none';
+    document.getElementById('profile-container').style.display = 'none';
+    document.getElementById('batch-container').style.display = 'none';
+    document.getElementById('batch-errors-container').style.display = 'flex';
+    document.getElementById('batch-errors-container').style.flexDirection = 'column';
+
+    // Highlight sidebar item
+    document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
+    const batchErrorsItem = document.querySelector('.event-item[data-group="batchErrors"]');
+    if (batchErrorsItem) {
+        batchErrorsItem.classList.add('active');
+    }
+}
+
+async function fetchBatchErrors() {
+    const batchId = document.getElementById('recoveryBatchId').value.trim();
+    if (!batchId) {
+        alert("Please enter a Batch ID.");
+        return;
+    }
+
+    const responseDiv = document.getElementById('batch-errors-response');
+    const countEl = document.getElementById('batch-errors-count');
+    const outputEl = document.getElementById('batch-errors-output');
+    const fetchBtn = document.getElementById('fetchErrorsBtn');
+
+    responseDiv.style.display = 'none';
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = 'Fetching...';
+    
+    // Get active environment variables
+    const env = environments.find(e => e.id === activeEnvId);
+    const envVars = env ? env.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) : {};
+
+    try {
+        const res = await fetch('/api/batch-errors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ batchId, envVars })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            const bodies = data.bodies || [];
+            countEl.textContent = `Extracted Payloads: ${bodies.length}`;
+            outputEl.textContent = JSON.stringify(bodies, null, 2);
+            responseDiv.style.display = 'block';
+        } else {
+            alert(`Error: ${data.error || 'Failed to fetch batch errors'}`);
+        }
+    } catch (e) {
+        alert(`Request failed: ${e.message}`);
+    } finally {
+        fetchBtn.disabled = false;
+        fetchBtn.textContent = 'Fetch Errors';
+    }
+}
+
+function copyBatchErrors() {
+    const outputEl = document.getElementById('batch-errors-output');
+    const text = outputEl.textContent;
+    if (!text) return;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        const copyBtn = document.getElementById('copyErrorsBtn');
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => {
+            copyBtn.textContent = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
 }
 
 // --- Environment Management ---
