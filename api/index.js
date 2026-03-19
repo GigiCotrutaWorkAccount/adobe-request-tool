@@ -353,7 +353,8 @@ app.post('/api/batch-errors', async (req, res) => {
 
     } catch (error) {
         console.error('Error fetching batch errors:', error.response ? error.response.data : error.message);
-        res.status(500).json({
+        const statusCode = error.response ? error.response.status : 500;
+        res.status(statusCode).json({
             error: error.message,
             details: error.details || (error.response ? error.response.data : null)
         });
