@@ -41,7 +41,6 @@
 
         <div class="sidebar-separator"></div>
         <div class="event-group-label">Tools</div>
-        <div class="event-item" onclick="showBatchUpload()" data-group="batchUpload">Batch Upload</div>
         <div class="event-item" onclick="showProfileCheck()" data-group="profileCheck">Profile Check</div>
         <div class="event-item" onclick="showBatchErrors()" data-group="batchErrors">Batch Errors</div>
 
@@ -72,53 +71,6 @@
             <div id="response"></div>
         </div>
 
-        <div id="batch-container" class="form-container" style="display: none;">
-            <h2>Smart Batch Upload</h2>
-
-            <div class="instructions">
-                <h3>Instructions</h3>
-                <p>Upload a CSV file with the following columns:</p>
-                <code>clientId,eventType,policyNumber,state,claimId,totalAmount,invoiceNumber</code>
-                <ul>
-                    <li><strong>Siniestro:</strong> Uses <code>claimId</code> - skips if already in profile or CERR
-                        exists</li>
-                    <li><strong>Poliza:</strong> Uses <code>policyNumber</code> - skips ALTA if already exists</li>
-                    <li><strong>Recibo:</strong> Uses <code>invoiceNumber</code> - skips if already in profile or COBR
-                        exists</li>
-                </ul>
-            </div>
-
-            <div class="upload-section">
-                <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(this)">
-            </div>
-
-            <div id="preview-section" style="display: none;">
-                <h3>Preview</h3>
-                <div class="preview-table-wrapper">
-                    <table id="preview-table">
-                        <thead>
-                            <tr>
-                                <th>Row</th>
-                                <th>Type</th>
-                                <th>Client ID</th>
-                                <th>Policy #</th>
-                                <th>State</th>
-                                <th>Claim/Invoice</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-
-                <div class="confirmation">
-                    <p>Does the preview look correct?</p>
-                    <button onclick="processBatch()">Yes, Process Smart Batch</button>
-                </div>
-            </div>
-
-            <div id="batch-log"></div>
-        </div>
-
         <div id="profile-container" class="form-container" style="display: none;">
             <h2>Profile Check</h2>
 
@@ -139,9 +91,7 @@
         <div id="batch-errors-container" class="form-container" style="display: none;">
             <h2>Batch Errors Recovery</h2>
 
-            <div class="instructions">
-                <p>Enter a batch ID to retrieve all failed events.</p>
-            </div>
+            <p style="margin-top: 0.5rem; margin-bottom: 1.5rem; color: var(--text-color); opacity: 0.8;">Enter a batch ID to retrieve all failed events.</p>
 
             <div class="profile-actions">
                 <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
@@ -154,7 +104,10 @@
             <div id="batch-errors-response" style="display: none; margin-top: 1.5rem;">
                 <div class="profile-actions" style="justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                     <h3 style="margin: 0;" id="batch-errors-count">Extracted Payloads: 0</h3>
-                    <button onclick="copyBatchErrors()" class="secondary-btn small-btn" id="copyErrorsBtn">Copy JSON</button>
+                    <div>
+                        <button onclick="resendBatchErrors()" class="secondary-btn small-btn" id="resendErrorsBtn" style="margin-right: 8px;">Resend All</button>
+                        <button onclick="copyBatchErrors()" class="secondary-btn small-btn" id="copyErrorsBtn">Copy JSON</button>
+                    </div>
                 </div>
                 <pre class="json-display" id="batch-errors-output" style="max-height: 500px; overflow-y: auto;"></pre>
             </div>
@@ -203,9 +156,9 @@
                             <textarea id="bulkEditText" rows="10"
                                 placeholder="Paste configuration here (Key:Value or Header:Value)..."
                                 style="width: 100%; font-family: monospace; padding: 0.5rem; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);"></textarea>
-                            <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
-                                <button class="secondary-btn small-btn" onclick="applyBulkEdit()">Apply</button>
-                                <button class="danger-btn small-btn" onclick="toggleBulkEdit()">Cancel</button>
+                            <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                                <button class="secondary-btn small-btn" style="margin-top: 0;" onclick="applyBulkEdit()">Apply</button>
+                                <button class="danger-btn small-btn" style="margin-top: 0;" onclick="toggleBulkEdit()">Cancel</button>
                             </div>
                         </div>
 

@@ -142,7 +142,6 @@ function selectGroup(groupName) {
     const sendBtn = document.getElementById('sendBtn');
     const responseDiv = document.getElementById('response');
 
-    document.getElementById('batch-container').style.display = 'none';
     document.getElementById('profile-container').style.display = 'none';
     document.getElementById('batch-errors-container').style.display = 'none';
     container.style.display = 'block';
@@ -273,7 +272,6 @@ async function sendInAppRequest(variation, inputId, btnElement) {
 }
 
 function selectEvent(variation, title) {
-    document.getElementById('batch-container').style.display = 'none';
     document.getElementById('profile-container').style.display = 'none';
     document.getElementById('batch-errors-container').style.display = 'none';
     currentVariation = variation;
@@ -378,7 +376,6 @@ function renderCollectionFields(variation) {
 
 function showProfileCheck() {
     document.getElementById('formContainer').style.display = 'none';
-    document.getElementById('batch-container').style.display = 'none';
     document.getElementById('batch-errors-container').style.display = 'none';
     document.getElementById('profile-container').style.display = 'flex';
 
@@ -604,169 +601,14 @@ async function sendRequest() {
     }
 }
 
-// Batch Upload Logic
-function showBatchUpload() {
-    document.getElementById('formContainer').style.display = 'none';
-    document.getElementById('profile-container').style.display = 'none';
-    document.getElementById('batch-errors-container').style.display = 'none';
-    document.getElementById('batch-container').style.display = 'block';
-
-    // Highlight sidebar item
-    document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
-    const batchItem = document.querySelector('.event-item[data-group="batchUpload"]');
-    if (batchItem) {
-        batchItem.classList.add('active');
-    }
-}
-
-function downloadTemplate() {
-    const headers = ['DNI/NIE', 'idCliente', 'estado', 'importeTotal', 'idObjeto', 'numeroPoliza', 'numeroObjeto'];
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headers]);
-    XLSX.utils.book_append_sheet(wb, ws, "Template");
-    XLSX.writeFile(wb, "Adobe_Batch_Template.xlsx");
-}
-
-let batchData = [];
-
-function handleFileUpload(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const fileName = file.name.toLowerCase();
-
-    if (fileName.endsWith('.csv')) {
-        // Parse CSV file with comma delimiter
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            const text = e.target.result;
-            const lines = text.split(/\r?\n/).filter(line => line.trim());
-            const headers = lines[0].split(',').map(h => h.trim());
-
-            const json = [];
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(',').map(v => v.trim());
-                const row = {};
-                headers.forEach((header, index) => {
-                    row[header] = values[index] || '';
-                });
-                json.push(row);
-            }
-            processPreview(json);
-        };
-        reader.readAsText(file);
-    } else {
-        // Parse Excel file
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            const json = XLSX.utils.sheet_to_json(worksheet);
-
-            processPreview(json);
-        };
-        reader.readAsArrayBuffer(file);
-    }
-}
-
-function processPreview(json) {
-    batchData = json;
-    const tbody = document.querySelector('#preview-table tbody');
-    tbody.innerHTML = '';
-
-    json.forEach((row, index) => {
-        const tr = document.createElement('tr');
-
-        // Determine type label from eventType
-        let typeLabel = 'Unknown';
-        if (row.eventType) {
-            if (row.eventType.includes('siniestro')) {
-                typeLabel = 'Siniestro';
-            } else if (row.eventType.includes('poliza')) {
-                typeLabel = 'Poliza';
-            } else if (row.eventType.includes('recibo')) {
-                typeLabel = 'Recibo';
-            }
-        }
-
-        tr.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${typeLabel}</td>
-            <td>${row.clientId || ''}</td>
-            <td>${row.policyNumber || ''}</td>
-            <td>${row.state || ''}</td>
-            <td>${row.claimId || row.invoiceNumber || '-'}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    document.getElementById('preview-section').style.display = 'block';
-}
-
-async function processBatch() {
-    const logDiv = document.getElementById('batch-log');
-    logDiv.innerHTML = 'Starting smart batch process...<br>';
-
-    // Get active environment variables
-    const env = environments.find(e => e.id === activeEnvId);
-    const envVars = env ? env.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) : {};
-
-    let sentCount = 0;
-    let skippedCount = 0;
-    let errorCount = 0;
-
-    for (let i = 0; i < batchData.length; i++) {
-        const row = batchData[i];
-
-        try {
-            logDiv.innerHTML += `Row ${i + 1} (${row.eventType}): `;
-
-            const res = await fetch('/api/batch/process-row', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    clientId: row.clientId,
-                    eventType: row.eventType,
-                    policyNumber: row.policyNumber,
-                    state: row.state,
-                    claimId: row.claimId,
-                    totalAmount: row.totalAmount,
-                    invoiceNumber: row.invoiceNumber,
-                    envVars: envVars
-                })
-            });
-
-            const result = await res.json();
-
-            if (res.ok) {
-                if (result.sent) {
-                    logDiv.innerHTML += `<span class="success">SENT</span> - ${result.reason}<br>`;
-                    sentCount++;
-                } else {
-                    logDiv.innerHTML += `<span style="color: #ff9500;">SKIPPED</span> - ${result.reason}<br>`;
-                    skippedCount++;
-                }
-            } else {
-                logDiv.innerHTML += `<span class="error">ERROR: ${result.error}</span><br>`;
-                errorCount++;
-            }
-
-        } catch (e) {
-            logDiv.innerHTML += `<span class="error">Error: ${e.message}</span><br>`;
-            errorCount++;
-        }
-    }
-
-    logDiv.innerHTML += `<br><strong>Batch complete:</strong> ${sentCount} sent, ${skippedCount} skipped, ${errorCount} errors.`;
-}
+// --- Batch Errors Recovery Logic ---
 
 // --- Batch Errors Recovery Logic ---
+let extractedBatchBodies = [];
+
 function showBatchErrors() {
     document.getElementById('formContainer').style.display = 'none';
     document.getElementById('profile-container').style.display = 'none';
-    document.getElementById('batch-container').style.display = 'none';
     document.getElementById('batch-errors-container').style.display = 'flex';
     document.getElementById('batch-errors-container').style.flexDirection = 'column';
 
@@ -809,6 +651,7 @@ async function fetchBatchErrors() {
 
         if (res.ok) {
             const bodies = data.bodies || [];
+            extractedBatchBodies = bodies; // Store globally for resending
             countEl.textContent = `Extracted Payloads: ${bodies.length}`;
             outputEl.textContent = JSON.stringify(bodies, null, 2);
             responseDiv.style.display = 'block';
@@ -838,6 +681,57 @@ function copyBatchErrors() {
     }).catch(err => {
         console.error('Failed to copy: ', err);
     });
+}
+
+async function resendBatchErrors() {
+    if (!extractedBatchBodies || extractedBatchBodies.length === 0) {
+        alert("No payloads to resend. Please fetch a batch first.");
+        return;
+    }
+
+    const resendBtn = document.getElementById('resendErrorsBtn');
+    if (!resendBtn) return;
+    
+    resendBtn.disabled = true;
+    resendBtn.textContent = 'Sending...';
+
+    // Get active environment variables
+    const env = environments.find(e => e.id === activeEnvId);
+    const envVars = env ? env.variables.reduce((acc, v) => ({ ...acc, [v.key]: v.value }), {}) : {};
+
+    let successCount = 0;
+    let failCount = 0;
+    
+    // Create a console-like experience or just a simple alert at the end
+    for (const body of extractedBatchBodies) {
+        try {
+            // Forward the payload back to the /api/send endpoint
+            // It auto-detects requestType: 'collection' if kafkaTopic is present
+            const res = await fetch('/api/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...body,
+                    envVars: envVars
+                })
+            });
+            
+            if (res.ok) {
+                successCount++;
+            } else {
+                failCount++;
+                console.error('Failed to resend object:', body);
+            }
+        } catch (e) {
+            failCount++;
+            console.error('Network error resending object:', e, body);
+        }
+    }
+
+    alert(`Resend Complete!\nSuccessful: ${successCount}\nFailed: ${failCount}\n\nCheck the browser console for any failed payloads.`);
+    
+    resendBtn.disabled = false;
+    resendBtn.textContent = 'Resend All';
 }
 
 // --- Environment Management ---
