@@ -26,7 +26,20 @@ if (savedTheme === 'light') {
     if (themeCheckbox) themeCheckbox.checked = true;
 }
 
+// --- Event Category Mapping ---
+const eventCategories = {
+    2: 'Web Events',
+    1: 'In-App Events',
+    3: 'In-App Events',
+    4: 'In-App Events',
+    5: 'Kafka Events',
+    6: 'Kafka Events',
+    7: 'Kafka Events',
+    8: 'Kafka Events',
+    9: 'Kafka Events'
+};
 
+// --- Field Defaults ---
 const defaults = {
     5: {
         "kafkaTopic": "es-verti.gcp.neurona.fct.siniestro.situacion",
@@ -131,26 +144,63 @@ const fieldOptions = {
     'tipoSituacion': ['ANUL']
 };
 
+// --- Section Visibility Helpers ---
+function hideAllSections() {
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('formSection').style.display = 'none';
+    document.getElementById('profileSection').style.display = 'none';
+    document.getElementById('batchSection').style.display = 'none';
+}
+
+function setDashboardHeader(title, breadcrumb, showSendBtn) {
+    document.getElementById('dashboardTitle').textContent = title;
+    document.getElementById('breadcrumb').textContent = breadcrumb || '';
+    document.getElementById('sendBtn').style.display = showSendBtn ? 'inline-flex' : 'none';
+    updateEnvBadge();
+}
+
+function updateEnvBadge() {
+    const badge = document.getElementById('envBadge');
+    const env = environments.find(e => e.id === activeEnvId);
+    if (env) {
+        badge.textContent = env.name;
+        badge.style.display = 'inline-flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function updateEnvIndicator() {
+    const indicator = document.getElementById('envIndicator');
+    const text = document.getElementById('envIndicatorText');
+    const env = environments.find(e => e.id === activeEnvId);
+    if (env) {
+        indicator.classList.add('active');
+        text.textContent = env.name;
+        indicator.title = `Active: ${env.name}`;
+    } else {
+        indicator.classList.remove('active');
+        text.textContent = 'No Environment';
+        indicator.title = 'No environment selected';
+    }
+}
+
+// --- Event Selection ---
 function selectGroup(groupName) {
-    // Update active state
     document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
-    event.target.classList.add('active');
+    event.target.closest('.event-item').classList.add('active');
 
-    const container = document.getElementById('formContainer');
-    const titleEl = document.getElementById('formTitle');
+    hideAllSections();
+    setDashboardHeader(groupName, 'In-App Events', false);
+
     const dynamicFields = document.getElementById('dynamicFields');
-    const sendBtn = document.getElementById('sendBtn');
     const responseDiv = document.getElementById('response');
-
-    document.getElementById('profile-container').style.display = 'none';
-    document.getElementById('batch-errors-container').style.display = 'none';
-    container.style.display = 'block';
-    titleEl.textContent = groupName;
     dynamicFields.innerHTML = '';
     responseDiv.style.display = 'none';
-    sendBtn.style.display = 'none'; // Hide main send button for group view
 
-    // Render group options
+    // Show form section
+    document.getElementById('formSection').style.display = 'block';
+
     if (groupName === 'inappmessageTracking') {
         const variations = [
             { id: 4, label: 'Interact' },
@@ -159,24 +209,12 @@ function selectGroup(groupName) {
         ];
 
         variations.forEach(v => {
-            const card = document.createElement('div');
-            card.className = 'event-card full-width';
+            const row = document.createElement('div');
+            row.className = 'inapp-action-row';
 
-            const title = document.createElement('h3');
-            title.textContent = v.label;
-
-
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'event-card-actions';
-
-            const formGroup = document.createElement('div');
-            formGroup.className = 'form-group';
-            formGroup.style.marginBottom = '0';
-            formGroup.style.width = '100%';
-
-            const label = document.createElement('label');
-            label.textContent = 'Client ID';
-            label.style.display = 'none';
+            const label = document.createElement('span');
+            label.className = 'inapp-label';
+            label.textContent = v.label;
 
             const input = document.createElement('input');
             input.type = 'text';
@@ -197,21 +235,14 @@ function selectGroup(groupName) {
             });
 
             const btn = document.createElement('button');
-            btn.textContent = `Send ${v.label}`;
-            btn.style.marginTop = '0';
-            btn.style.width = '100%';
+            btn.textContent = `Send`;
             btn.onclick = () => sendInAppRequest(v.id, input.id, btn);
 
-            formGroup.appendChild(label);
-            formGroup.appendChild(input);
+            row.appendChild(label);
+            row.appendChild(input);
+            row.appendChild(btn);
 
-            actionsDiv.appendChild(formGroup);
-            actionsDiv.appendChild(btn);
-
-            card.appendChild(title);
-            card.appendChild(actionsDiv);
-
-            dynamicFields.appendChild(card);
+            dynamicFields.appendChild(row);
         });
     }
 }
@@ -253,7 +284,6 @@ async function sendInAppRequest(variation, inputId, btnElement) {
         const data = await res.json();
 
         responseDiv.style.display = 'block';
-        // Use the new formatter
         responseDiv.innerHTML = formatResponseDisplay(data, parseInt(variation));
 
         if (res.ok) {
@@ -272,28 +302,26 @@ async function sendInAppRequest(variation, inputId, btnElement) {
 }
 
 function selectEvent(variation, title) {
-    document.getElementById('profile-container').style.display = 'none';
-    document.getElementById('batch-errors-container').style.display = 'none';
     currentVariation = variation;
 
-    // Update active state if not coming from group selection (internal call)
-    if (event && event.target.classList.contains('event-item')) {
-        document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
-        event.target.classList.add('active');
+    // Update active state
+    document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
+    if (event && event.target) {
+        const item = event.target.closest('.event-item');
+        if (item) item.classList.add('active');
     }
 
-    // Show form
-    const container = document.getElementById('formContainer');
-    const titleEl = document.getElementById('formTitle');
-    const dynamicFields = document.getElementById('dynamicFields');
-    const sendBtn = document.getElementById('sendBtn');
-    const responseDiv = document.getElementById('response');
+    hideAllSections();
 
-    container.style.display = 'block';
-    titleEl.textContent = title;
+    const category = eventCategories[variation] || '';
+    setDashboardHeader(title, category, true);
+
+    const dynamicFields = document.getElementById('dynamicFields');
+    const responseDiv = document.getElementById('response');
     dynamicFields.innerHTML = '';
     responseDiv.style.display = 'none';
-    sendBtn.style.display = 'block'; // Show send button
+
+    document.getElementById('formSection').style.display = 'block';
 
     if (variation >= 5) {
         renderCollectionFields(variation);
@@ -350,7 +378,6 @@ function createField(key, defaultValue, isFullWidth = false) {
 
 function renderInteractFields() {
     const dynamicFields = document.getElementById('dynamicFields');
-    // Interact events just need Client ID
     dynamicFields.appendChild(createField('clientId', '', true));
 }
 
@@ -375,16 +402,14 @@ function renderCollectionFields(variation) {
 }
 
 function showProfileCheck() {
-    document.getElementById('formContainer').style.display = 'none';
-    document.getElementById('batch-errors-container').style.display = 'none';
-    document.getElementById('profile-container').style.display = 'flex';
+    hideAllSections();
+    setDashboardHeader('Profile Check', 'Tools', false);
+    document.getElementById('profileSection').style.display = 'block';
 
     // Highlight sidebar item
     document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
     const profileCheckItem = document.querySelector('.event-item[data-group="profileCheck"]');
-    if (profileCheckItem) {
-        profileCheckItem.classList.add('active');
-    }
+    if (profileCheckItem) profileCheckItem.classList.add('active');
 }
 
 async function checkProfile() {
@@ -413,7 +438,6 @@ async function checkProfile() {
         const data = await res.json();
 
         if (res.ok) {
-            // Helper to render attribute rows
             const renderAttribute = (label, value) => {
                 return `
                 <div class="attribute-row">
@@ -514,7 +538,6 @@ async function checkProfile() {
 
                 data.events.forEach((event, index) => {
                     let jsonString = JSON.stringify(event, null, 2);
-                    // Highlight "eventType"
                     jsonString = jsonString.replace(/"eventType":\s*"([^"]+)"/g, '<span class="key-highlight">"eventType": "$1"</span>');
 
                     eventsHtml += `
@@ -558,7 +581,7 @@ async function sendRequest() {
     const originalText = sendBtn.textContent;
 
     sendBtn.disabled = true;
-    sendBtn.textContent = 'Sending...';
+    sendBtn.innerHTML = '<span>Sending...</span>';
     responseDiv.style.display = 'none';
     responseDiv.className = '';
 
@@ -575,7 +598,7 @@ async function sendRequest() {
             body: JSON.stringify({
                 variation: currentVariation,
                 data: data,
-                clientId: data.clientId, // Pass clientId at top level too for Interact
+                clientId: data.clientId,
                 envVars: envVars
             })
         });
@@ -583,7 +606,6 @@ async function sendRequest() {
         const result = await res.json();
 
         responseDiv.style.display = 'block';
-        // Use the new formatter
         responseDiv.innerHTML = formatResponseDisplay(result, parseInt(currentVariation));
 
         if (res.ok) {
@@ -597,27 +619,22 @@ async function sendRequest() {
         responseDiv.classList.add('error');
     } finally {
         sendBtn.disabled = false;
-        sendBtn.textContent = originalText;
+        sendBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg> Send Request`;
     }
 }
-
-// --- Batch Errors Recovery Logic ---
 
 // --- Batch Errors Recovery Logic ---
 let extractedBatchBodies = [];
 
 function showBatchErrors() {
-    document.getElementById('formContainer').style.display = 'none';
-    document.getElementById('profile-container').style.display = 'none';
-    document.getElementById('batch-errors-container').style.display = 'flex';
-    document.getElementById('batch-errors-container').style.flexDirection = 'column';
+    hideAllSections();
+    setDashboardHeader('Batch Errors Recovery', 'Tools', false);
+    document.getElementById('batchSection').style.display = 'block';
 
     // Highlight sidebar item
     document.querySelectorAll('.event-item').forEach(el => el.classList.remove('active'));
     const batchErrorsItem = document.querySelector('.event-item[data-group="batchErrors"]');
-    if (batchErrorsItem) {
-        batchErrorsItem.classList.add('active');
-    }
+    if (batchErrorsItem) batchErrorsItem.classList.add('active');
 }
 
 async function fetchBatchErrors() {
@@ -651,7 +668,7 @@ async function fetchBatchErrors() {
 
         if (res.ok) {
             const bodies = data.bodies || [];
-            extractedBatchBodies = bodies; // Store globally for resending
+            extractedBatchBodies = bodies;
             countEl.textContent = `Extracted Payloads: ${bodies.length}`;
             outputEl.textContent = JSON.stringify(bodies, null, 2);
             responseDiv.style.display = 'block';
@@ -702,11 +719,8 @@ async function resendBatchErrors() {
     let successCount = 0;
     let failCount = 0;
     
-    // Create a console-like experience or just a simple alert at the end
     for (const body of extractedBatchBodies) {
         try {
-            // Forward the payload back to the /api/send endpoint
-            // It auto-detects requestType: 'collection' if kafkaTopic is present
             const res = await fetch('/api/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -739,7 +753,6 @@ async function resendBatchErrors() {
 let environments = [];
 let activeEnvId = null;
 
-// Load environments from localStorage
 function loadEnvironments() {
     const storedEnvs = localStorage.getItem('environments');
     if (storedEnvs) {
@@ -752,12 +765,16 @@ function loadEnvironments() {
     }
 
     renderEnvSelector();
+    updateEnvIndicator();
+    updateEnvBadge();
 }
 
 function saveEnvironments() {
     localStorage.setItem('environments', JSON.stringify(environments));
     localStorage.setItem('activeEnvId', activeEnvId || '');
     renderEnvSelector();
+    updateEnvIndicator();
+    updateEnvBadge();
 }
 
 function renderEnvSelector() {
@@ -774,7 +791,6 @@ function renderEnvSelector() {
         selector.appendChild(option);
     });
 
-    // Also update the editor if open
     if (activeEnvId) {
         renderEnvEditor(activeEnvId);
     } else {
@@ -847,7 +863,6 @@ function updateEnvVar(index, field, value) {
 function removeEnvVar(index) {
     const env = environments.find(e => e.id === activeEnvId);
     if (env) {
-        // Sync name before re-render
         const currentName = document.getElementById('envName').value;
         if (currentName) env.name = currentName;
 
@@ -859,7 +874,6 @@ function removeEnvVar(index) {
 function addEnvVarRow() {
     const env = environments.find(e => e.id === activeEnvId);
     if (env) {
-        // Sync name before re-render
         const currentName = document.getElementById('envName').value;
         if (currentName) env.name = currentName;
 
@@ -884,7 +898,6 @@ function toggleBulkEdit() {
     container.style.display = isHidden ? 'block' : 'none';
 
     if (isHidden) {
-        // Populate textarea with current vars
         const env = environments.find(e => e.id === activeEnvId);
         if (env) {
             const text = env.variables.map(v => `${v.key}:${v.value}`).join('\n');
@@ -900,13 +913,10 @@ function applyBulkEdit() {
 
     lines.forEach(line => {
         if (!line.trim()) return;
-        // Split by first colon
         const parts = line.split(':');
         if (parts.length >= 2) {
             const key = parts[0].trim();
-            // Join the rest back in case value contains colons
             const value = parts.slice(1).join(':').trim();
-            // Remove {{ }} if present
             const cleanValue = value.replace(/^{{|}}$/g, '');
             newVars.push({ key, value: cleanValue });
         }
@@ -914,8 +924,6 @@ function applyBulkEdit() {
 
     const env = environments.find(e => e.id === activeEnvId);
     if (env) {
-        // Merge with existing vars or replace? 
-        // Let's replace/update existing keys and add new ones
         newVars.forEach(newVar => {
             const existingIndex = env.variables.findIndex(v => v.key === newVar.key);
             if (existingIndex >= 0) {
@@ -926,7 +934,7 @@ function applyBulkEdit() {
         });
 
         renderEnvEditor(activeEnvId);
-        toggleBulkEdit(); // Close editor
+        toggleBulkEdit();
         saveEnvironments();
     }
 }
@@ -947,7 +955,7 @@ function confirmDeleteEnv() {
     environments = environments.filter(e => e.id !== activeEnvId);
     activeEnvId = null;
     saveEnvironments();
-    cancelDeleteEnv(); // Reset the buttons
+    cancelDeleteEnv();
 }
 
 // UI Handlers
@@ -994,7 +1002,6 @@ function formatResponseDisplay(data, variation) {
     if (requestPayload) {
         displayContent += '<h3>Request Details</h3>';
 
-        // Siniestro (5) & Recibo (6, 9)
         if (variation === 5 || variation === 6 || variation === 9) {
             const mapfreData = requestPayload.event?.xdm?.kafkaReciboSituacion?._mapfretechsa ||
                 requestPayload.event?.xdm?.kafkaSiniestroSituacion?._mapfretechsa ||
@@ -1006,7 +1013,6 @@ function formatResponseDisplay(data, variation) {
                 displayContent += '<p>No _mapfretechsa data found.</p>';
             }
         }
-        // Cliente Contacto (7)
         else if (variation === 7) {
             const contactData = requestPayload.event?.xdm?.kafkaClienteContacto?._mapfretechsa?.customer?.contact;
             if (contactData) {
@@ -1022,7 +1028,6 @@ function formatResponseDisplay(data, variation) {
                 displayContent += '<p>No contact data found.</p>';
             }
         }
-        // InApp (1, 3, 4)
         else if (variation === 1 || variation === 3 || variation === 4) {
             const impressions = requestPayload.event?.xdm?.alerts?.impressions;
             if (impressions) {
@@ -1035,7 +1040,6 @@ function formatResponseDisplay(data, variation) {
                 displayContent += '<p>No impressions found.</p>';
             }
         }
-        // Default: Show full payload for others
         else {
             displayContent += `<pre>${JSON.stringify(requestPayload, null, 2)}</pre>`;
         }

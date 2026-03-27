@@ -17,102 +17,159 @@
 </head>
 
 <body>
-    <div class="sidebar">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
         <div class="sidebar-header">
             <h1>Adobe Events</h1>
         </div>
-        <div class="event-group-label">Web Events</div>
-        <div class="event-item" onclick="selectEvent(2, 'web.webpagedetails.pageViews')">web.webpagedetails.pageViews
-        </div>
 
+        <div class="sidebar-nav">
+            <div class="event-group-label">Web Events</div>
+            <div class="event-item" onclick="selectEvent(2, 'web.webpagedetails.pageViews')">
+                <span class="event-dot"></span>
+                web.webpagedetails.pageViews
+            </div>
 
-        <div class="sidebar-separator"></div>
-        <div class="event-group-label">In-App Events</div>
-        <div class="event-item" onclick="selectGroup('inappmessageTracking')">inappmessageTracking</div>
+            <div class="sidebar-separator"></div>
+            <div class="event-group-label">In-App Events</div>
+            <div class="event-item" onclick="selectGroup('inappmessageTracking')">
+                <span class="event-dot"></span>
+                inappmessageTracking
+            </div>
 
-        <div class="sidebar-separator"></div>
-        <div class="event-group-label">Kafka Events</div>
-        <div class="event-item" onclick="selectEvent(5, 'kafka.siniestro.situacion')">kafka.siniestro.situacion</div>
-        <div class="event-item" onclick="selectEvent(6, 'kafka.recibo-total.situacion')">kafka.recibo-total.situacion
-        </div>
-        <div class="event-item" onclick="selectEvent(7, 'kafka.cliente.contacto')">kafka.cliente.contacto</div>
-        <div class="event-item" onclick="selectEvent(8, 'kafka.cotizacion.situacion')">kafka.cotizacion.situacion</div>
-        <div class="event-item" onclick="selectEvent(9, 'kafka.poliza.situacion')">kafka.poliza.situacion</div>
+            <div class="sidebar-separator"></div>
+            <div class="event-group-label">Kafka Events</div>
+            <div class="event-item" onclick="selectEvent(5, 'kafka.siniestro.situacion')">
+                <span class="event-dot"></span>
+                kafka.siniestro.situacion
+            </div>
+            <div class="event-item" onclick="selectEvent(6, 'kafka.recibo-total.situacion')">
+                <span class="event-dot"></span>
+                kafka.recibo-total.situacion
+            </div>
+            <div class="event-item" onclick="selectEvent(7, 'kafka.cliente.contacto')">
+                <span class="event-dot"></span>
+                kafka.cliente.contacto
+            </div>
+            <div class="event-item" onclick="selectEvent(8, 'kafka.cotizacion.situacion')">
+                <span class="event-dot"></span>
+                kafka.cotizacion.situacion
+            </div>
+            <div class="event-item" onclick="selectEvent(9, 'kafka.poliza.situacion')">
+                <span class="event-dot"></span>
+                kafka.poliza.situacion
+            </div>
 
-        <div class="sidebar-separator"></div>
-        <div class="event-group-label">Tools</div>
-        <div class="event-item" onclick="showProfileCheck()" data-group="profileCheck">Profile Check</div>
-        <div class="event-item" onclick="showBatchErrors()" data-group="batchErrors">Batch Errors</div>
-
-        <div class="theme-switch-wrapper">
-            <span class="theme-label" onclick="setTheme(true)">☀️</span>
-            <label class="theme-switch" for="checkbox">
-                <input type="checkbox" id="checkbox" onchange="toggleTheme(this.checked)">
-                <span class="slider"></span>
-            </label>
-            <span class="theme-label" onclick="setTheme(false)">🌙</span>
-            <div class="settings-icon" onclick="openSettings()" title="Settings">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path
-                        d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
-                </svg>
+            <div class="sidebar-separator"></div>
+            <div class="event-group-label">Tools</div>
+            <div class="event-item" onclick="showProfileCheck()" data-group="profileCheck">
+                <span class="event-dot tool-dot"></span>
+                Profile Check
+            </div>
+            <div class="event-item" onclick="showBatchErrors()" data-group="batchErrors">
+                <span class="event-dot tool-dot"></span>
+                Batch Errors
             </div>
         </div>
-    </div>
 
-    <div class="main-content">
-        <div id="formContainer" class="form-container">
-            <h2 id="formTitle">Select an Event</h2>
-
-            <div id="dynamicFields" class="fields-grid"></div>
-
-            <button id="sendBtn" onclick="sendRequest()">Send Request</button>
-
-            <div id="response"></div>
+        <div class="sidebar-footer">
+            <div class="env-indicator" id="envIndicator" onclick="openSettings()" title="No environment selected">
+                <span class="env-indicator-dot"></span>
+                <span class="env-indicator-text" id="envIndicatorText">No Environment</span>
+            </div>
+            <div class="sidebar-footer-controls">
+                <span class="theme-label" onclick="setTheme(true)">☀️</span>
+                <label class="theme-switch" for="checkbox">
+                    <input type="checkbox" id="checkbox" onchange="toggleTheme(this.checked)">
+                    <span class="slider"></span>
+                </label>
+                <span class="theme-label" onclick="setTheme(false)">🌙</span>
+                <div class="settings-icon" onclick="openSettings()" title="Settings">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <path
+                            d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
+                    </svg>
+                </div>
+            </div>
         </div>
+    </nav>
 
-        <div id="profile-container" class="form-container" style="display: none;">
-            <h2>Profile Check</h2>
+    <!-- Main Dashboard -->
+    <main class="dashboard">
+        <!-- Dashboard Header -->
+        <header class="dashboard-header" id="dashboardHeader">
+            <div class="dashboard-header-left">
+                <span class="breadcrumb" id="breadcrumb"></span>
+                <h2 class="dashboard-title" id="dashboardTitle">Welcome</h2>
+            </div>
+            <div class="dashboard-header-right">
+                <span class="env-badge" id="envBadge" style="display:none;"></span>
+                <button id="sendBtn" onclick="sendRequest()" style="display:none;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                    </svg>
+                    Send Request
+                </button>
+            </div>
+        </header>
 
-            <div class="profile-actions">
-                <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
-                    <label for="profileClientId" style="display: none;">Client ID</label>
+        <!-- Welcome / Empty State -->
+        <section class="empty-state" id="emptyState">
+            <div class="empty-state-icon">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                </svg>
+            </div>
+            <h3>Select an event to get started</h3>
+            <p>Choose an event type from the sidebar to configure and send requests to Adobe Experience Platform.</p>
+        </section>
+
+        <!-- Event Form Section -->
+        <section class="dashboard-section" id="formSection" style="display:none;">
+            <div id="dynamicFields" class="fields-grid"></div>
+            <div id="response"></div>
+        </section>
+
+        <!-- Profile Check Section -->
+        <section class="dashboard-section" id="profileSection" style="display:none;">
+            <div class="inline-action-row">
+                <div class="form-group">
+                    <label for="profileClientId">Client ID</label>
                     <input type="text" id="profileClientId" placeholder="Enter Client ID" value="">
                 </div>
-                <button onclick="checkProfile()" style="white-space: nowrap; margin-top: 0;">Check Profile</button>
+                <button onclick="checkProfile()" class="action-btn">Check Profile</button>
             </div>
 
             <div id="profile-response" class="profile-columns" style="display: none;">
                 <div id="profile-data" class="profile-column"></div>
                 <div id="profile-events" class="profile-column"></div>
             </div>
-        </div>
-        
-        <div id="batch-errors-container" class="form-container" style="display: none;">
-            <h2>Batch Errors Recovery</h2>
+        </section>
 
-            <p style="margin-top: 0.5rem; margin-bottom: 1.5rem; color: var(--text-color); opacity: 0.8;">Enter a batch ID to retrieve all failed events.</p>
-
-            <div class="profile-actions">
-                <div class="form-group" style="margin-bottom: 0; flex-grow: 1;">
-                    <label for="recoveryBatchId" style="display: none;">Batch ID</label>
-                    <input type="text" id="recoveryBatchId" placeholder="Enter Batch ID (e.g. 01KKKCJZV69WWXMW65EPE57WMT)" value="">
+        <!-- Batch Errors Section -->
+        <section class="dashboard-section" id="batchSection" style="display:none;">
+            <p class="section-description">Enter a batch ID to retrieve all failed events.</p>
+            <div class="inline-action-row">
+                <div class="form-group">
+                    <label for="recoveryBatchId">Batch ID</label>
+                    <input type="text" id="recoveryBatchId"
+                        placeholder="Enter Batch ID (e.g. 01KKKCJZV69WWXMW65EPE57WMT)" value="">
                 </div>
-                <button onclick="fetchBatchErrors()" style="white-space: nowrap; margin-top: 0;" id="fetchErrorsBtn">Fetch Errors</button>
+                <button onclick="fetchBatchErrors()" class="action-btn" id="fetchErrorsBtn">Fetch Errors</button>
             </div>
 
             <div id="batch-errors-response" style="display: none; margin-top: 1.5rem;">
-                <div class="profile-actions" style="justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <h3 style="margin: 0;" id="batch-errors-count">Extracted Payloads: 0</h3>
-                    <div>
-                        <button onclick="resendBatchErrors()" class="secondary-btn small-btn" id="resendErrorsBtn" style="margin-right: 8px;">Resend All</button>
+                <div class="batch-errors-header">
+                    <h3 id="batch-errors-count">Extracted Payloads: 0</h3>
+                    <div class="batch-errors-actions">
+                        <button onclick="resendBatchErrors()" class="secondary-btn small-btn" id="resendErrorsBtn">Resend All</button>
                         <button onclick="copyBatchErrors()" class="secondary-btn small-btn" id="copyErrorsBtn">Copy JSON</button>
                     </div>
                 </div>
                 <pre class="json-display" id="batch-errors-output" style="max-height: 500px; overflow-y: auto;"></pre>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
@@ -124,7 +181,6 @@
             <div class="modal-body">
                 <div class="tabs">
                     <button class="tab-link active" onclick="openTab(event, 'Environments')">Environments</button>
-                    <!-- Add more tabs here if needed -->
                 </div>
 
                 <div id="Environments" class="tab-content" style="display: block;">
@@ -146,9 +202,7 @@
                         </div>
 
                         <h3>Variables</h3>
-                        <div id="envVarsList">
-                            <!-- Variable rows will be added here -->
-                        </div>
+                        <div id="envVarsList"></div>
                         <button class="secondary-btn small-btn" onclick="addEnvVarRow()">+ Add Variable</button>
                         <button class="secondary-btn small-btn" onclick="toggleBulkEdit()">Bulk Edit</button>
 
@@ -157,8 +211,10 @@
                                 placeholder="Paste configuration here (Key:Value or Header:Value)..."
                                 style="width: 100%; font-family: monospace; padding: 0.5rem; border: 1px solid var(--input-border); border-radius: 4px; background: var(--input-bg); color: var(--text-color);"></textarea>
                             <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">
-                                <button class="secondary-btn small-btn" style="margin-top: 0;" onclick="applyBulkEdit()">Apply</button>
-                                <button class="danger-btn small-btn" style="margin-top: 0;" onclick="toggleBulkEdit()">Cancel</button>
+                                <button class="secondary-btn small-btn" style="margin-top: 0;"
+                                    onclick="applyBulkEdit()">Apply</button>
+                                <button class="danger-btn small-btn" style="margin-top: 0;"
+                                    onclick="toggleBulkEdit()">Cancel</button>
                             </div>
                         </div>
 
