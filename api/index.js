@@ -55,6 +55,20 @@ const {
 // Token State
 const tokenCache = {}; // Key: clientId, Value: { token, time }
 
+function createHttpError(status, message, details = null) {
+    const error = new Error(message);
+    error.status = status;
+    error.details = details;
+    return error;
+}
+
+function findMissingRequiredFields(source, fields) {
+    return fields.filter((field) => {
+        const value = source[field];
+        return value === undefined || value === null || value === '';
+    });
+}
+
 async function getValidToken(overrides = {}) {
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
@@ -64,6 +78,18 @@ async function getValidToken(overrides = {}) {
     const currentTokenUrl = overrides.TOKEN_URL || TOKEN_URL || 'https://ims-na1.adobelogin.com/ims/token/v3';
     const currentGrantType = overrides.GRANT_TYPE || GRANT_TYPE || 'client_credentials';
     const currentScope = overrides.SCOPE || SCOPE;
+
+    const tokenConfig = {
+        CLIENT_ID: currentClientId,
+        CLIENT_SECRET: currentClientSecret,
+        TOKEN_URL: currentTokenUrl,
+        GRANT_TYPE: currentGrantType,
+        SCOPE: currentScope
+    };
+    const missingTokenFields = findMissingRequiredFields(tokenConfig, ['CLIENT_ID', 'CLIENT_SECRET', 'TOKEN_URL', 'GRANT_TYPE', 'SCOPE']);
+    if (missingTokenFields.length > 0) {
+        throw createHttpError(400, 'Missing token configuration', { missingFields: missingTokenFields });
+    }
 
     // Check cache for this specific client ID
     if (tokenCache[currentClientId] && (now - tokenCache[currentClientId].time < twentyFourHours)) {
@@ -95,7 +121,7 @@ async function getValidToken(overrides = {}) {
     } catch (error) {
         const errorDetails = error.response ? error.response.data : error.message;
         console.error('Error fetching token:', errorDetails);
-        const newError = new Error('Failed to generate access token');
+        const newError = createHttpError(error.response?.status || 500, 'Failed to generate access token');
         newError.details = errorDetails;
         throw newError;
     }
@@ -115,6 +141,10 @@ app.post('/api/send', async (req, res) => {
         const currentOrgId = envVars?.ORG_ID || ORG_ID;
         const currentSandboxName = envVars?.SANDBOX_NAME || SANDBOX_NAME;
         const currentFlowId = envVars?.FLOW_ID || FLOW_ID;
+        const mergedCustomHeaders = {
+            ...(CUSTOM_HEADERS || {}),
+            ...(customHeaders || {})
+        };
 
         // Auto-detect collection request based on kafkaTopic in root body (Flat Payload support)
         if (req.body.kafkaTopic) {
@@ -130,12 +160,32 @@ app.post('/api/send', async (req, res) => {
             }
         }
 
+        const commonConfig = {
+            API_KEY: currentApiKey,
+            ORG_ID: currentOrgId,
+            SANDBOX_NAME: currentSandboxName
+        };
+        const missingCommonFields = findMissingRequiredFields(commonConfig, ['API_KEY', 'ORG_ID', 'SANDBOX_NAME']);
+        if (missingCommonFields.length > 0) {
+            return res.status(400).json({
+                error: 'Missing API configuration',
+                details: { missingFields: missingCommonFields }
+            });
+        }
+
         const token = await getValidToken(envVars);
 
         console.log('Using Adobe URL:', currentAdobeUrl);
         console.log('Using Collection URL:', currentCollectionUrl);
 
         if (requestType === 'collection') {
+            if (!currentCollectionUrl) {
+                return res.status(400).json({
+                    error: 'Missing collection endpoint configuration',
+                    details: { missingFields: ['COLLECTION_URL'] }
+                });
+            }
+
             // --- Collection API Logic ---
             let payload = data || req.body;
             let kafkaTopic = payload.kafkaTopic;
@@ -157,14 +207,14 @@ app.post('/api/send', async (req, res) => {
 
             const response = await axios.post(currentCollectionUrl, collectionPayload, {
                 headers: {
+                    ...mergedCustomHeaders,
                     'Authorization': `Bearer ${token}`,
                     'x-gw-ims-org-id': currentOrgId,
                     'x-api-key': currentApiKey,
                     'x-sandbox-name': currentSandboxName,
                     'x-adobe-flow-id': currentFlowId,
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache',
-                    ...customHeaders
+                    'Cache-Control': 'no-cache'
                 }
             });
 
@@ -177,6 +227,13 @@ app.post('/api/send', async (req, res) => {
             // --- Interact API Logic ---
             if (!clientId) {
                 return res.status(400).json({ error: 'Client ID is required' });
+            }
+
+            if (!currentAdobeUrl) {
+                return res.status(400).json({
+                    error: 'Missing interact endpoint configuration',
+                    details: { missingFields: ['ADOBE_URL'] }
+                });
             }
 
             const timestamp = new Date().toISOString();
@@ -265,6 +322,7 @@ app.post('/api/send', async (req, res) => {
             }
 
             let headers = {
+                ...mergedCustomHeaders,
                 'Authorization': `Bearer ${token}`,
                 'x-gw-ims-org-id': currentOrgId,
                 'x-api-key': currentApiKey,
@@ -280,7 +338,8 @@ app.post('/api/send', async (req, res) => {
         }
     } catch (error) {
         console.error('Error processing request:', error.message);
-        res.status(500).json({
+        const statusCode = error.status || error.response?.status || 500;
+        res.status(statusCode).json({
             error: error.message,
             details: error.details || (error.response ? error.response.data : null)
         });
