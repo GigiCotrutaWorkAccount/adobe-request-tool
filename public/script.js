@@ -995,8 +995,20 @@ window.onclick = function (event) {
 loadEnvironments();
 
 function formatResponseDisplay(data, variation) {
-    const { adobeResponse, requestPayload } = data;
+    const { adobeResponse, requestPayload, error, details } = data;
     let displayContent = '';
+
+    if (error) {
+        displayContent += '<h3>Error</h3>';
+        displayContent += `<pre>${JSON.stringify({ error, details }, null, 2)}</pre>`;
+
+        if (requestPayload) {
+            displayContent += '<h3>Request Details</h3>';
+            displayContent += `<pre>${JSON.stringify(requestPayload, null, 2)}</pre>`;
+        }
+
+        return displayContent;
+    }
 
     // 1. Display Request Details based on variation
     if (requestPayload) {
